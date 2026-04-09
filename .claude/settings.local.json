@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(npm run:*)",
+      "Bash(npm ls:*)",
+      "Bash(node C:/Users/MaximilianoSiufi/.claude/plugins/cache/openai-codex/codex/1.0.2/scripts/codex-companion.mjs task --write 'Implement Tasks 2-6 for MixPay fintech demo at C:/Maxi/MixPay/mixpay. Execute in order and commit after each task.:*)",
+      "Bash(del vite.config.mjs vitest.config.mjs)",
+      "Bash(rm -rf build src/App.css src/assets)",
+      "Bash(npm test:*)"
+    ]
+  }
+}
