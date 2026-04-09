@@ -5,11 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build --configLoader native --config vite.config.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "vitest run",
-    "test:watch": "vitest"
+    "test": "vitest run --configLoader native --config vitest.config.mjs --pool threads",
+    "test:watch": "vitest --configLoader native --config vitest.config.mjs --pool threads"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.2.2",
