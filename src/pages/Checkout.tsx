@@ -1,105 +1,127 @@
 // src/pages/Checkout.tsx
-import { useState } from 'react';
-import { useNavigate } from 'react-router';
-import type { PaymentStrategy } from '../types';
-import { mockBalances, mockCard } from '../lib/mock-data';
+import { useState } from 'react'
+import { useNavigate } from 'react-router'
+import { useSession } from '../context/SessionContext'
+import { mockCard } from '../lib/mock-data'
 
-const MERCHANT = 'Nike Store';
-const AMOUNT = 20;
+const PRESET_MERCHANTS = [
+  { name: 'Nike Store',    icon: '👟' },
+  { name: 'Spotify',       icon: '🎵' },
+  { name: 'Amazon',        icon: '📦' },
+  { name: 'Uber',          icon: '🚗' },
+  { name: 'MercadoLibre',  icon: '🛒' },
+]
 
 export default function Checkout() {
-  const navigate = useNavigate();
-  const [strategy, setStrategy] = useState<PaymentStrategy>('minimize-fees');
+  const navigate = useNavigate()
+  const { sources } = useSession()
+
+  const [merchant, setMerchant] = useState('Nike Store')
+  const [amountStr, setAmountStr] = useState('20')
+
+  const amount = parseFloat(amountStr) || 0
+  const isValid = amount >= 1 && amount <= 500
 
   function handlePay() {
-    navigate('/optimizing', {
-      state: { merchant: MERCHANT, amount: AMOUNT, strategy, balances: mockBalances },
-    });
+    if (!isValid) return
+    navigate('/optimizing', { state: { merchant, amount, sources } })
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
+    <div className="min-h-screen bg-[#0F172A] flex items-center justify-center p-6">
       <div className="w-full max-w-sm space-y-4">
         <button
           onClick={() => navigate('/')}
-          className="text-sm text-gray-400 hover:text-gray-600 flex items-center gap-1"
+          className="text-sm text-[#64748B] hover:text-[#94A3B8] flex items-center gap-1 transition-colors"
         >
           ← Back
         </button>
 
-        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm text-center">
-          <div className="w-16 h-16 bg-black rounded-2xl mx-auto mb-4 flex items-center justify-center">
-            <svg viewBox="0 0 24 14" className="w-10 fill-white">
-              <path d="M1 13 C8 13 20 0 23 0 C25 0 24 3 20 5 C14 8 3 13 1 13Z" />
-            </svg>
+        {/* Merchant Picker */}
+        <div className="bg-[#272F42] rounded-2xl p-5 border border-[#334155]">
+          <p className="text-xs font-semibold text-[#64748B] uppercase tracking-wide mb-3">
+            Select Merchant
+          </p>
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+            {PRESET_MERCHANTS.map(m => (
+              <button
+                key={m.name}
+                onClick={() => setMerchant(m.name)}
+                className={`flex-shrink-0 flex flex-col items-center gap-1.5 px-3 py-2.5 rounded-xl border text-xs font-medium transition-all ${
+                  merchant === m.name
+                    ? 'border-[#F59E0B] bg-[#F59E0B]/10 text-[#F59E0B]'
+                    : 'border-[#334155] text-[#64748B] hover:border-[#64748B]'
+                }`}
+              >
+                <span className="text-xl">{m.icon}</span>
+                <span className="whitespace-nowrap">{m.name}</span>
+              </button>
+            ))}
           </div>
-          <h2 className="text-xl font-bold text-gray-900">{MERCHANT}</h2>
-          <p className="text-gray-400 text-sm mt-1">nike.com</p>
         </div>
 
-        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
-          <p className="text-sm text-gray-400 mb-1">Amount due</p>
-          <p className="text-5xl font-bold text-gray-900 tracking-tight">${AMOUNT}.00</p>
-          <p className="text-sm text-gray-400 mt-1">United States Dollar</p>
+        {/* Amount Input */}
+        <div className="bg-[#272F42] rounded-2xl p-6 border border-[#334155]">
+          <p className="text-sm text-[#64748B] mb-3">Amount due</p>
+          <div className="flex items-center gap-2">
+            <span className="text-4xl font-bold text-[#F59E0B]">$</span>
+            <input
+              type="number"
+              min={1}
+              max={500}
+              step="0.01"
+              value={amountStr}
+              onChange={e => setAmountStr(e.target.value)}
+              className="text-4xl font-bold text-[#F59E0B] bg-transparent border-none outline-none w-full tracking-tight"
+              style={{ fontFamily: 'inherit' }}
+            />
+          </div>
+          <p className="text-sm text-[#64748B] mt-2">United States Dollar · max $500</p>
+          {!isValid && amountStr !== '' && (
+            <p className="text-xs text-rose-400 mt-1">Enter an amount between $1 and $500</p>
+          )}
         </div>
 
-        <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex items-center gap-3">
-          <div className="w-12 h-8 bg-gray-900 rounded flex items-center justify-center flex-shrink-0">
-            <span className="text-white text-xs font-bold">VISA</span>
+        {/* Card Info */}
+        <div className="bg-[#272F42] rounded-2xl p-4 border border-[#334155] flex items-center gap-3">
+          <div className="w-12 h-8 bg-[#0F172A] rounded flex items-center justify-center flex-shrink-0">
+            <span className="text-[#F8FAFC] text-xs font-bold">VISA</span>
           </div>
           <div>
-            <p className="font-medium text-gray-900 text-sm">{mockCard.label}</p>
-            <p className="text-xs text-gray-400">•••• •••• •••• {mockCard.last4}</p>
+            <p className="font-medium text-[#F8FAFC] text-sm">{mockCard.label}</p>
+            <p className="text-xs text-[#64748B]">•••• •••• •••• {mockCard.last4}</p>
           </div>
-          <span className="ml-auto text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full font-medium">
-            Smart Pay
-          </span>
+          <div className="ml-auto flex items-center gap-1.5 text-xs bg-[#8B5CF6]/20 text-[#8B5CF6] px-2.5 py-1 rounded-full font-medium">
+            <span>✨</span>
+            <span>AI Recommended</span>
+          </div>
         </div>
 
-        <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
-            Optimization Strategy
-          </p>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setStrategy('minimize-fees')}
-              className={`flex-1 py-2.5 px-3 rounded-lg text-sm font-semibold transition-all ${
-                strategy === 'minimize-fees'
-                  ? 'bg-black text-white shadow-sm'
-                  : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-              }`}
-            >
-              Minimize Fees
-            </button>
-            <button
-              onClick={() => setStrategy('preserve-usd')}
-              className={`flex-1 py-2.5 px-3 rounded-lg text-sm font-semibold transition-all ${
-                strategy === 'preserve-usd'
-                  ? 'bg-black text-white shadow-sm'
-                  : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-              }`}
-            >
-              Preserve USD
-            </button>
+        {/* AI Info Banner */}
+        <div className="bg-[#1E293B] rounded-xl px-4 py-3 border border-[#334155] flex items-start gap-3">
+          <div className="w-5 h-5 bg-[#8B5CF6] rounded-md flex items-center justify-center flex-shrink-0 mt-0.5">
+            <svg className="w-3 h-3 text-white" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+            </svg>
           </div>
-          <p className="text-xs text-gray-400 mt-2">
-            {strategy === 'minimize-fees'
-              ? 'Uses USD → USDC → ARS. Lowest possible fees.'
-              : 'Uses USDC → ARS → USD. Keeps your USD intact.'}
+          <p className="text-xs text-[#94A3B8] leading-relaxed">
+            MixPay AI will analyze your {sources.length} available payment sources and automatically choose the lowest-fee combination.
           </p>
         </div>
 
+        {/* Pay Button */}
         <button
           onClick={handlePay}
-          className="w-full bg-black text-white py-4 rounded-xl font-bold text-lg hover:bg-gray-800 active:scale-95 transition-all shadow-lg shadow-black/10"
+          disabled={!isValid}
+          className="w-full bg-[#F59E0B] text-[#0F172A] py-4 rounded-xl font-bold text-lg hover:bg-[#FBBF24] active:scale-95 transition-all shadow-lg shadow-amber-500/20 disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
         >
           Pay with MixPay
         </button>
 
-        <p className="text-center text-xs text-gray-400">
-          Secured by MixPay · No credit card charged
+        <p className="text-center text-xs text-[#64748B]">
+          Secured by MixPay · AI-optimized routing
         </p>
       </div>
     </div>
-  );
+  )
 }

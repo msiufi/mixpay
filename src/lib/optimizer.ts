@@ -1,4 +1,4 @@
-import type { Balances, OptimizationResult, PaymentStrategy } from '../types'
+import type { OptimizationResult, PaymentSource, SourceUsage } from '../types'
 
 export const ARS_RATE = 1400
 
@@ -8,57 +8,60 @@ function roundAmount(value: number) {
 
 export function optimizePayment(
   amountUSD: number,
-  balances: Balances,
-  strategy: PaymentStrategy = 'minimize-fees',
+  sources: PaymentSource[],
 ): OptimizationResult {
   let remaining = roundAmount(amountUSD)
-  let usdUsed = 0
-  let usdcUsed = 0
-  let arsUsedUSD = 0
-  let arsUsed = 0
+  const sourceUsages: SourceUsage[] = []
 
-  const useUSD = () => {
-    const used = Math.min(remaining, balances.usd)
-    usdUsed = roundAmount(used)
-    remaining = roundAmount(remaining - usdUsed)
+  const sorted = [...sources].sort((a, b) => a.priority - b.priority)
+
+  for (const source of sorted) {
+    if (remaining < 0.001) break
+
+    let amountUSDFromSource: number
+    let amountOriginal: number
+
+    if (source.currency === 'ARS') {
+      const availableUSD = roundAmount(source.available / ARS_RATE)
+      const usedUSD = Math.min(remaining, availableUSD)
+      if (usedUSD <= 0) continue
+      amountUSDFromSource = roundAmount(usedUSD)
+      amountOriginal = roundAmount(usedUSD * ARS_RATE)
+    } else {
+      const used = Math.min(remaining, source.available)
+      if (used <= 0) continue
+      amountUSDFromSource = roundAmount(used)
+      amountOriginal = amountUSDFromSource
+    }
+
+    const fee = roundAmount(amountUSDFromSource * source.feeRate)
+
+    sourceUsages.push({
+      sourceId: source.id,
+      label: source.label,
+      symbol: source.symbol,
+      currency: source.currency,
+      amountOriginal,
+      amountUSD: amountUSDFromSource,
+      fee,
+      feeRate: source.feeRate,
+    })
+
+    remaining = roundAmount(remaining - amountUSDFromSource)
   }
 
-  const useUSDC = () => {
-    const used = Math.min(remaining, balances.usdc)
-    usdcUsed = roundAmount(used)
-    remaining = roundAmount(remaining - usdcUsed)
-  }
-
-  const useARS = () => {
-    const arsBalanceUSD = roundAmount(balances.ars / ARS_RATE)
-    const usedUSD = Math.min(remaining, arsBalanceUSD)
-    arsUsedUSD = roundAmount(usedUSD)
-    arsUsed = roundAmount(arsUsedUSD * ARS_RATE)
-    remaining = roundAmount(remaining - arsUsedUSD)
-  }
-
-  if (strategy === 'preserve-usd') {
-    useUSDC()
-    useARS()
-    useUSD()
-  } else {
-    useUSD()
-    useUSDC()
-    useARS()
-  }
-
-  const totalUSD = roundAmount(usdUsed + usdcUsed + arsUsedUSD)
-  const fees = roundAmount(arsUsedUSD * 0.005)
+  const totalUSD = roundAmount(sourceUsages.reduce((sum, u) => sum + u.amountUSD, 0))
+  const totalFees = roundAmount(sourceUsages.reduce((sum, u) => sum + u.fee, 0))
 
   return {
-    usdUsed,
-    usdcUsed,
-    arsUsed,
-    arsUsedUSD,
+    sourceUsages,
     totalUSD,
-    fees,
-    arsRate: ARS_RATE,
-    strategy,
+    totalFees,
     success: remaining < 0.001,
   }
+}
+
+/** Fee that would be charged if the full amount was paid with a Visa (3.5%). */
+export function getWorstCaseFee(amountUSD: number): number {
+  return roundAmount(amountUSD * 0.035)
 }

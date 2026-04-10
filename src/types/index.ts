@@ -1,20 +1,31 @@
-export interface Balances {
-  usd: number
-  usdc: number
-  ars: number
+export type PaymentSourceKind = 'balance' | 'credit_card'
+
+export interface PaymentSource {
+  id: string
+  label: string
+  symbol: string
+  kind: PaymentSourceKind
+  currency: string
+  available: number
+  feeRate: number
+  priority: number
 }
 
-export type PaymentStrategy = 'minimize-fees' | 'preserve-usd'
+export interface SourceUsage {
+  sourceId: string
+  label: string
+  symbol: string
+  currency: string
+  amountOriginal: number
+  amountUSD: number
+  fee: number
+  feeRate: number
+}
 
 export interface OptimizationResult {
-  usdUsed: number
-  usdcUsed: number
-  arsUsed: number
-  arsUsedUSD: number
+  sourceUsages: SourceUsage[]
   totalUSD: number
-  fees: number
-  arsRate: number
-  strategy: PaymentStrategy
+  totalFees: number
   success: boolean
 }
 

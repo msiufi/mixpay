@@ -1,130 +1,185 @@
 // src/pages/Dashboard.tsx
-import { useState } from 'react';
-import { useNavigate } from 'react-router';
-import { mockBalances, mockCard, mockTransactions } from '../lib/mock-data';
-import { ARS_RATE } from '../lib/optimizer';
-import AIExplanationModal from '../components/AIExplanationModal';
-import type { Transaction } from '../types';
+import { useState } from 'react'
+import { useNavigate } from 'react-router'
+import { useSession } from '../context/SessionContext'
+import { ARS_RATE } from '../lib/optimizer'
+import { getSourceColors } from '../lib/source-colors'
+import { mockCard } from '../lib/mock-data'
+import AIExplanationModal from '../components/AIExplanationModal'
+import type { Transaction } from '../types'
 
 export default function Dashboard() {
-  const navigate = useNavigate();
-  const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
+  const navigate = useNavigate()
+  const { sources, transactions } = useSession()
+  const [selectedTx, setSelectedTx] = useState<Transaction | null>(null)
 
-  const totalUSD =
-    mockBalances.usd + mockBalances.usdc + mockBalances.ars / ARS_RATE;
+  const ownSources = sources.filter(s => s.kind === 'balance')
+  const cardSources = sources.filter(s => s.kind === 'credit_card')
+
+  const totalUSD = ownSources.reduce((sum, s) => {
+    if (s.currency === 'ARS') return sum + s.available / ARS_RATE
+    return sum + s.available
+  }, 0)
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-white border-b border-gray-100 px-6 py-4 sticky top-0 z-10">
+    <div className="min-h-screen bg-[#0F172A]">
+      {/* Header */}
+      <div className="bg-[#0F172A] border-b border-[#334155] px-6 py-4 sticky top-0 z-10">
         <div className="max-w-lg mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center">
-              <span className="text-white text-xs font-bold">M</span>
+            <div className="w-8 h-8 bg-[#F59E0B] rounded-lg flex items-center justify-center">
+              <span className="text-[#0F172A] text-xs font-bold">M</span>
             </div>
-            <span className="text-lg font-semibold text-gray-900">MixPay</span>
+            <span
+              className="text-lg font-semibold text-[#F8FAFC]"
+              style={{ fontFamily: "'Orbitron', sans-serif" }}
+            >
+              MixPay
+            </span>
           </div>
-          <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-sm font-medium text-gray-600">
+          <div className="w-8 h-8 bg-[#272F42] rounded-full flex items-center justify-center text-sm font-medium text-[#F8FAFC]">
             JD
           </div>
         </div>
       </div>
 
       <div className="max-w-lg mx-auto px-6 py-8 space-y-6">
-        <div className="bg-black rounded-2xl p-6 text-white">
-          <p className="text-gray-400 text-sm mb-1">Total Balance</p>
-          <p className="text-4xl font-bold">${totalUSD.toFixed(2)}</p>
-          <p className="text-gray-500 text-sm mt-1">USD equivalent</p>
+        {/* Total Balance Card */}
+        <div className="bg-gradient-to-br from-[#1E2A4A] to-[#0F172A] border border-[#334155] rounded-2xl p-6 text-white">
+          <p className="text-[#94A3B8] text-sm mb-1">Total Balance</p>
+          <p className="text-4xl font-bold text-[#F59E0B]">${totalUSD.toFixed(2)}</p>
+          <p className="text-[#64748B] text-sm mt-1">USD equivalent · own funds</p>
         </div>
 
+        {/* Own Balances */}
         <div>
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+          <p className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wide mb-3">
             Balances
           </p>
           <div className="grid grid-cols-3 gap-3">
-            <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
-              <div className="text-2xl mb-2">🇺🇸</div>
-              <p className="text-xs text-gray-500 mb-0.5">USD</p>
-              <p className="text-lg font-bold text-gray-900">${mockBalances.usd}</p>
-            </div>
-            <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
-              <div className="text-2xl mb-2">🔷</div>
-              <p className="text-xs text-gray-500 mb-0.5">USDC</p>
-              <p className="text-lg font-bold text-gray-900">${mockBalances.usdc}</p>
-            </div>
-            <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
-              <div className="text-2xl mb-2">🇦🇷</div>
-              <p className="text-xs text-gray-500 mb-0.5">ARS</p>
-              <p className="text-lg font-bold text-gray-900">
-                {mockBalances.ars.toLocaleString()}
-              </p>
-            </div>
+            {ownSources.map(source => {
+              const colors = getSourceColors(source.id)
+              const displayValue = source.currency === 'ARS'
+                ? source.available.toLocaleString()
+                : `$${source.available.toFixed(2)}`
+              return (
+                <div
+                  key={source.id}
+                  className="bg-[#272F42] rounded-xl p-4 border border-[#334155]"
+                >
+                  <div className="mb-2">
+                    <div className={`w-8 h-8 rounded-full ${colors.bg} flex items-center justify-center`}>
+                      <span className={`${colors.icon} text-sm font-bold`}>{source.symbol || '$'}</span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-[#94A3B8] mb-0.5">{source.currency}</p>
+                  <p className="text-base font-bold text-[#F8FAFC] leading-tight">{displayValue}</p>
+                </div>
+              )
+            })}
           </div>
         </div>
 
+        {/* Credit Cards */}
+        {cardSources.length > 0 && (
+          <div>
+            <p className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wide mb-3">
+              Credit Cards
+            </p>
+            <div className="space-y-2">
+              {cardSources.map(source => {
+                const colors = getSourceColors(source.id)
+                return (
+                  <div
+                    key={source.id}
+                    className="bg-[#272F42] rounded-xl p-4 border border-[#334155] flex items-center gap-3"
+                  >
+                    <div className={`w-10 h-8 ${colors.bg} border ${colors.bg.replace('/10', '/30')} rounded flex items-center justify-center flex-shrink-0`}>
+                      <span className={`${colors.text} text-xs font-bold uppercase`}>
+                        {source.id === 'visa' ? 'VISA' : 'MC'}
+                      </span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-[#F8FAFC] text-sm">{source.label}</p>
+                      <p className="text-xs text-[#64748B]">
+                        {(source.feeRate * 100).toFixed(1)}% fee · ${source.available.toLocaleString()} limit
+                      </p>
+                    </div>
+                    <span className="text-xs bg-[#1E293B] text-[#64748B] px-2 py-1 rounded-full">
+                      Backup
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Linked Card */}
         <div>
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
-            Linked Card
+          <p className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wide mb-3">
+            MixPay Card
           </p>
-          <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm flex items-center gap-4">
-            <div className="w-12 h-8 bg-gray-900 rounded flex items-center justify-center flex-shrink-0">
-              <span className="text-white text-xs font-bold">VISA</span>
+          <div className="bg-[#272F42] rounded-xl p-4 border border-[#334155] flex items-center gap-4">
+            <div className="w-12 h-8 bg-[#0F172A] rounded flex items-center justify-center flex-shrink-0">
+              <span className="text-[#F8FAFC] text-xs font-bold">VISA</span>
             </div>
             <div>
-              <p className="font-medium text-gray-900 text-sm">{mockCard.label}</p>
-              <p className="text-xs text-gray-500">•••• •••• •••• {mockCard.last4}</p>
+              <p className="font-medium text-[#F8FAFC] text-sm">{mockCard.label}</p>
+              <p className="text-xs text-[#64748B]">•••• •••• •••• {mockCard.last4}</p>
             </div>
             <div className="ml-auto">
-              <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium">
+              <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded-full font-medium">
                 Active
               </span>
             </div>
           </div>
         </div>
 
+        {/* CTA Button */}
         <button
           onClick={() => navigate('/checkout')}
-          className="w-full bg-black text-white py-4 rounded-xl font-semibold text-base hover:bg-gray-800 active:scale-95 transition-all"
+          className="w-full bg-[#F59E0B] text-[#0F172A] py-4 rounded-xl font-semibold text-base hover:bg-[#FBBF24] active:scale-95 transition-all"
         >
           Simulate Purchase →
         </button>
 
+        {/* Recent Transactions */}
         <div>
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+          <p className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wide mb-3">
             Recent Transactions
           </p>
           <div className="space-y-3">
-            {mockTransactions.map(tx => (
+            {transactions.map(tx => (
               <div
                 key={tx.id}
-                className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm"
+                className="bg-[#272F42] rounded-xl p-4 border border-[#334155]"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-gray-900">{tx.merchant}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">{tx.date}</p>
+                    <p className="font-semibold text-[#F8FAFC]">{tx.merchant}</p>
+                    <p className="text-xs text-[#64748B] mt-0.5">{tx.date}</p>
                     <div className="flex gap-1 mt-2 flex-wrap">
-                      {tx.result.usdUsed > 0 && (
-                        <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium">
-                          USD ${tx.result.usdUsed}
-                        </span>
-                      )}
-                      {tx.result.usdcUsed > 0 && (
-                        <span className="text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full font-medium">
-                          USDC ${tx.result.usdcUsed}
-                        </span>
-                      )}
-                      {tx.result.arsUsed > 0 && (
-                        <span className="text-xs bg-sky-50 text-sky-700 px-2 py-0.5 rounded-full font-medium">
-                          ARS {tx.result.arsUsed.toLocaleString()}
-                        </span>
-                      )}
+                      {tx.result.sourceUsages.map(usage => {
+                        const colors = getSourceColors(usage.sourceId)
+                        return (
+                          <span
+                            key={usage.sourceId}
+                            className={`text-xs ${colors.bg} ${colors.text} px-2 py-0.5 rounded-full font-medium`}
+                          >
+                            {usage.currency === 'ARS'
+                              ? `ARS ${usage.amountOriginal.toLocaleString()}`
+                              : `${usage.label} $${usage.amountUSD.toFixed(2)}`}
+                          </span>
+                        )
+                      })}
                     </div>
                   </div>
                   <div className="text-right flex-shrink-0">
-                    <p className="font-semibold text-gray-900">-${tx.amount}</p>
+                    <p className="font-semibold text-[#F8FAFC]">-${tx.amount}</p>
                     <button
                       onClick={() => setSelectedTx(tx)}
-                      className="text-xs text-indigo-600 font-medium mt-2 hover:underline"
+                      className="text-xs text-[#8B5CF6] font-medium mt-2 hover:underline"
                     >
                       AI explanation ✦
                     </button>
@@ -146,5 +201,5 @@ export default function Dashboard() {
         />
       )}
     </div>
-  );
+  )
 }

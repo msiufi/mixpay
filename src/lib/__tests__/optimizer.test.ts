@@ -1,92 +1,111 @@
 import { describe, expect, it } from 'vitest'
 
-import { ARS_RATE, optimizePayment } from '../optimizer'
+import { ARS_RATE, getWorstCaseFee, optimizePayment } from '../optimizer'
+import { defaultSources } from '../mock-data'
+import type { PaymentSource } from '../../types'
+
+const ownFundsOnly: PaymentSource[] = [
+  { id: 'usd',  label: 'USD Cash',  symbol: '$', kind: 'balance', currency: 'USD',  available: 5,     feeRate: 0,     priority: 1 },
+  { id: 'usdc', label: 'USDC',      symbol: '$', kind: 'balance', currency: 'USDC', available: 5,     feeRate: 0,     priority: 2 },
+  { id: 'ars',  label: 'Pesos ARS', symbol: '₱', kind: 'balance', currency: 'ARS',  available: 14000, feeRate: 0.005, priority: 3 },
+]
 
 describe('optimizePayment', () => {
-  const balances = {
-    usd: 5,
-    usdc: 5,
-    ars: 14000,
-  }
-
-  describe('minimize-fees', () => {
-    it('uses USD first', () => {
-      const result = optimizePayment(20, balances, 'minimize-fees')
-
-      expect(result.usdUsed).toBe(5)
+  describe('priority ordering', () => {
+    it('uses USD first (priority 1)', () => {
+      const result = optimizePayment(3, ownFundsOnly)
+      const usdUsage = result.sourceUsages.find(u => u.sourceId === 'usd')
+      expect(usdUsage?.amountUSD).toBeCloseTo(3)
     })
 
-    it('uses USDC second', () => {
-      const result = optimizePayment(20, balances, 'minimize-fees')
-
-      expect(result.usdcUsed).toBe(5)
+    it('uses USDC after USD is exhausted', () => {
+      const result = optimizePayment(8, ownFundsOnly)
+      const usd  = result.sourceUsages.find(u => u.sourceId === 'usd')
+      const usdc = result.sourceUsages.find(u => u.sourceId === 'usdc')
+      expect(usd?.amountUSD).toBeCloseTo(5)
+      expect(usdc?.amountUSD).toBeCloseTo(3)
     })
 
-    it('uses ARS for the remainder', () => {
-      const result = optimizePayment(20, balances, 'minimize-fees')
+    it('converts ARS for the remainder after USD + USDC', () => {
+      const result = optimizePayment(20, ownFundsOnly)
+      const ars = result.sourceUsages.find(u => u.sourceId === 'ars')
+      expect(ars?.amountUSD).toBeCloseTo(10)
+      expect(ars?.amountOriginal).toBeCloseTo(14000)
+    })
+  })
 
-      expect(result.arsUsedUSD).toBeCloseTo(10)
+  describe('credit card fallback', () => {
+    it('uses Visa when own funds are insufficient (priority 4)', () => {
+      const result = optimizePayment(35, defaultSources)
+      const visa = result.sourceUsages.find(u => u.sourceId === 'visa')
+      expect(visa).toBeDefined()
+      expect(visa!.amountUSD).toBeCloseTo(15)
     })
 
-    it('marks the optimization as successful for a 20 USD payment', () => {
-      const result = optimizePayment(20, balances, 'minimize-fees')
+    it('charges the correct fee rate for Visa (3.5%)', () => {
+      const result = optimizePayment(35, defaultSources)
+      const visa = result.sourceUsages.find(u => u.sourceId === 'visa')
+      expect(visa?.fee).toBeCloseTo(visa!.amountUSD * 0.035)
+    })
+  })
 
+  describe('success flag', () => {
+    it('returns success: true when fully covered', () => {
+      const result = optimizePayment(20, ownFundsOnly)
       expect(result.success).toBe(true)
     })
 
-    it('marks the optimization as unsuccessful for a 100 USD payment', () => {
-      const result = optimizePayment(100, balances, 'minimize-fees')
-
+    it('returns success: false when funds are insufficient (no cards)', () => {
+      const result = optimizePayment(100, ownFundsOnly)
       expect(result.success).toBe(false)
     })
 
-    it('returns the total optimized amount in USD', () => {
-      const result = optimizePayment(20, balances, 'minimize-fees')
+    it('returns success: true for large amounts when credit cards are available', () => {
+      const result = optimizePayment(400, defaultSources)
+      expect(result.success).toBe(true)
+    })
 
+    it('returns success: false when even cards cannot cover the amount', () => {
+      const result = optimizePayment(1000, defaultSources)
+      expect(result.success).toBe(false)
+    })
+  })
+
+  describe('totals', () => {
+    it('totalUSD equals the requested amount on success', () => {
+      const result = optimizePayment(20, ownFundsOnly)
       expect(result.totalUSD).toBeCloseTo(20)
     })
 
-    it('calculates ARS fees from the converted amount', () => {
-      const result = optimizePayment(20, balances, 'minimize-fees')
+    it('totalFees is the sum of all source fees', () => {
+      const result = optimizePayment(20, ownFundsOnly)
+      const sumFees = result.sourceUsages.reduce((s, u) => s + u.fee, 0)
+      expect(result.totalFees).toBeCloseTo(sumFees)
+    })
 
-      expect(result.fees).toBeCloseTo(result.arsUsedUSD * 0.005)
+    it('ARS fee is 0.5% of ARS amount in USD', () => {
+      const result = optimizePayment(20, ownFundsOnly)
+      const ars = result.sourceUsages.find(u => u.sourceId === 'ars')
+      expect(ars?.fee).toBeCloseTo(ars!.amountUSD * 0.005)
     })
   })
 
-  describe('preserve-usd', () => {
-    it('uses USDC first for an 8 USD payment', () => {
-      const result = optimizePayment(8, balances, 'preserve-usd')
-
-      expect(result.usdcUsed).toBe(5)
-    })
-
-    it('preserves USD while ARS covers the rest', () => {
-      const result = optimizePayment(8, balances, 'preserve-usd')
-
-      expect(result.usdUsed).toBe(0)
-    })
-
-    it('falls back to USD as a last resort', () => {
-      const smallBalances = {
-        usd: 10,
-        usdc: 0,
-        ars: 0,
-      }
-      const result = optimizePayment(8, smallBalances, 'preserve-usd')
-
-      expect(result.usdUsed).toBe(8)
-    })
-  })
-
-  describe('ARS rate', () => {
+  describe('ARS conversion', () => {
     it('exports the expected ARS rate constant', () => {
       expect(ARS_RATE).toBe(1400)
     })
 
-    it('returns the ARS rate in the optimization result', () => {
-      const result = optimizePayment(20, balances, 'minimize-fees')
+    it('amountOriginal for ARS is in peso units', () => {
+      const result = optimizePayment(20, ownFundsOnly)
+      const ars = result.sourceUsages.find(u => u.sourceId === 'ars')
+      expect(ars?.amountOriginal).toBeCloseTo(ars!.amountUSD * ARS_RATE)
+    })
+  })
 
-      expect(result.arsRate).toBe(ARS_RATE)
+  describe('getWorstCaseFee', () => {
+    it('returns 3.5% of the amount', () => {
+      expect(getWorstCaseFee(20)).toBeCloseTo(0.70)
+      expect(getWorstCaseFee(100)).toBeCloseTo(3.50)
     })
   })
 })

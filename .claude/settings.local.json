@@ -7,7 +7,17 @@
       "Bash(node C:/Users/MaximilianoSiufi/.claude/plugins/cache/openai-codex/codex/1.0.2/scripts/codex-companion.mjs task --write 'Implement Tasks 2-6 for MixPay fintech demo at C:/Maxi/MixPay/mixpay. Execute in order and commit after each task.:*)",
       "Bash(del vite.config.mjs vitest.config.mjs)",
       "Bash(rm -rf build src/App.css src/assets)",
-      "Bash(npm test:*)"
+      "Bash(npm test:*)",
+      "WebSearch",
+      "Bash(claude mcp:*)",
+      "Bash(ls /c/Developer/mixpay/src/types*)",
+      "Bash(npx tsc:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git config:*)",
+      "Read(//c/Users/Maxi/.claude/plugins/cache/ui-ux-pro-max-skill/ui-ux-pro-max/2.5.0/**)",
+      "Bash(python3 skills/ui-ux-pro-max/scripts/search.py \"fintech crypto payment wallet mobile app\" --design-system -p \"MixPay\" -f markdown)",
+      "Bash(where python3:*)"
     ]
   }
 }

@@ -33,17 +33,17 @@ export default function BalanceBar({
   return (
     <div className="space-y-1.5">
       <div className="flex justify-between text-sm">
-        <span className="text-gray-600 font-medium">{label}</span>
-        <span className="text-gray-500">
+        <span className="text-[#94A3B8] font-medium">{label}</span>
+        <span className="text-[#64748B]">
           {symbol}
           {used.toLocaleString()}{' '}
-          <span className="text-gray-300">
+          <span className="text-[#334155]">
             / {symbol}
             {total.toLocaleString()}
           </span>
         </span>
       </div>
-      <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+      <div className="h-1.5 bg-[#1E293B] rounded-full overflow-hidden">
         <div
           className={`h-full rounded-full transition-all duration-700 ease-out ${color}`}
           style={{ width: `${width}%` }}
