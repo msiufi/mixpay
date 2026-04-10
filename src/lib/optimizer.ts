@@ -23,12 +23,16 @@ export function optimizePayment(
 
     if (source.currency === 'ARS') {
       const availableUSD = roundAmount(source.available / ARS_RATE)
-      const usedUSD = Math.min(remaining, availableUSD)
+      // Max merchant amount considering fee must also come from this source
+      const maxMerchantUSD = roundAmount(availableUSD / (1 + source.feeRate))
+      const usedUSD = Math.min(remaining, maxMerchantUSD)
       if (usedUSD <= 0) continue
       amountUSDFromSource = roundAmount(usedUSD)
-      amountOriginal = roundAmount(usedUSD * ARS_RATE)
+      // amountOriginal = total ARS debited (merchant amount + fee)
+      amountOriginal = roundAmount(usedUSD * (1 + source.feeRate) * ARS_RATE)
     } else {
-      const used = Math.min(remaining, source.available)
+      const maxMerchantUSD = roundAmount(source.available / (1 + source.feeRate))
+      const used = Math.min(remaining, maxMerchantUSD)
       if (used <= 0) continue
       amountUSDFromSource = roundAmount(used)
       amountOriginal = amountUSDFromSource

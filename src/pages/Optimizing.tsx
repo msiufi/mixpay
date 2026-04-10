@@ -173,7 +173,7 @@ export default function Optimizing() {
                   </div>
                   <div className="flex justify-between text-sm border-t border-[#334155] pt-2">
                     <span className="font-semibold text-[#F8FAFC]">Total</span>
-                    <span className="font-bold text-[#F8FAFC]">${amount.toFixed(2)} USD</span>
+                    <span className="font-bold text-[#F8FAFC]">${(amount + result.totalFees).toFixed(4)} USD</span>
                   </div>
                 </div>
               </div>
