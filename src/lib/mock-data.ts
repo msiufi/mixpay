@@ -3,11 +3,11 @@ import type { Card, PaymentSource, Transaction } from '../types'
 import { optimizePayment } from './optimizer'
 
 export const defaultSources: PaymentSource[] = [
-  { id: 'usd',        label: 'USD Cash',    symbol: '$', kind: 'balance',     currency: 'USD',  available: 5,     feeRate: 0,     priority: 1 },
-  { id: 'usdc',       label: 'USDC',        symbol: '$', kind: 'balance',     currency: 'USDC', available: 5,     feeRate: 0,     priority: 2 },
-  { id: 'ars',        label: 'Pesos ARS',   symbol: '₱', kind: 'balance',     currency: 'ARS',  available: 14000, feeRate: 0.005, priority: 3 },
-  { id: 'visa',       label: 'Visa Default', symbol: '$', kind: 'credit_card', currency: 'USD',  available: 500,   feeRate: 0.035, priority: 4, bank: 'Default', network: 'visa',       creditLimit: 500, closingDay: 15, dueDay: 5,  last4: '4521' },
-  { id: 'mastercard', label: 'Mastercard Default', symbol: '$', kind: 'credit_card', currency: 'USD',  available: 300,   feeRate: 0.025, priority: 5, bank: 'Default', network: 'mastercard', creditLimit: 300, closingDay: 22, dueDay: 12, last4: '8832' },
+  { id: 'usd',        label: 'USD Cash',    symbol: '$', kind: 'balance',     currency: 'USD',  available: 5,     feeRate: 0,     priority: 1, yieldRate: 0.042  },
+  { id: 'usdc',       label: 'USDC',        symbol: '$', kind: 'balance',     currency: 'USDC', available: 5,     feeRate: 0,     priority: 2, yieldRate: 0.051  },
+  { id: 'ars',        label: 'Pesos ARS',   symbol: '$', kind: 'balance',     currency: 'ARS',  available: 14000, feeRate: 0.005, priority: 3, yieldRate: 0.40   },
+  { id: 'visa',       label: 'Visa Credit', symbol: '$', kind: 'credit_card', currency: 'USD',  available: 500,   feeRate: 0.035, priority: 4, yieldRate: 0      },
+  { id: 'mastercard', label: 'Mastercard',  symbol: '$', kind: 'credit_card', currency: 'USD',  available: 300,   feeRate: 0.025, priority: 5, yieldRate: 0      },
 ]
 
 export const defaultBalances: PaymentSource[] = defaultSources.filter(s => s.kind === 'balance')

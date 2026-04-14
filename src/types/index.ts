@@ -9,6 +9,7 @@ export interface PaymentSource {
   available: number
   feeRate: number
   priority: number
+  yieldRate?: number  // annual yield if kept invested (e.g. 0.05 = 5% APY), optional for backward compat
   // Credit card fields (only when kind === 'credit_card')
   bank?: string
   network?: string

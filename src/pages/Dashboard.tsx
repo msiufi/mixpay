@@ -1,32 +1,41 @@
 // src/pages/Dashboard.tsx
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router'
 import { useSession } from '../context/SessionContext'
 import { ARS_RATE } from '../lib/optimizer'
 import { getSourceColors } from '../lib/source-colors'
 import { mockCard } from '../lib/mock-data'
+import { getCachedRates } from '../lib/rates-cache'
 import AIExplanationModal from '../components/AIExplanationModal'
 import CardDisplay from '../components/CardDisplay'
 import AddCardModal from '../components/AddCardModal'
 import type { PaymentSource, Transaction } from '../types'
+import type { LiveRates } from '../lib/agents/types'
 
 type FundCurrency = 'usd' | 'usdc' | 'ars'
 
 const FUND_OPTIONS: { id: FundCurrency; label: string; symbol: string; placeholder: string }[] = [
   { id: 'usd',  label: 'USD',  symbol: '$', placeholder: 'Ej: 50' },
   { id: 'usdc', label: 'USDC', symbol: '$', placeholder: 'Ej: 50' },
-  { id: 'ars',  label: 'ARS',  symbol: '₱', placeholder: 'Ej: 10000' },
+  { id: 'ars',  label: 'ARS',  symbol: '$', placeholder: 'Ej: 10000' },
 ]
 
 function AddFundsModal({ onClose }: { onClose: () => void }) {
   const { addFunds } = useSession()
   const [selected, setSelected] = useState<FundCurrency>('usd')
-  const [amount, setAmount] = useState('')
+  const [rawAmount, setRawAmount] = useState('')
+  const [focused, setFocused] = useState(false)
+
+  const numericValue = parseFloat(rawAmount) || 0
+  const displayValue = focused
+    ? rawAmount
+    : numericValue > 0
+      ? numericValue.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      : ''
 
   function handleConfirm() {
-    const val = parseFloat(amount)
-    if (!val || val <= 0) return
-    addFunds(selected, val)
+    if (!numericValue || numericValue <= 0) return
+    addFunds(selected, numericValue)
     onClose()
   }
 
@@ -51,7 +60,7 @@ function AddFundsModal({ onClose }: { onClose: () => void }) {
           {FUND_OPTIONS.map(opt => (
             <button
               key={opt.id}
-              onClick={() => { setSelected(opt.id); setAmount('') }}
+              onClick={() => { setSelected(opt.id); setRawAmount('') }}
               className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${
                 selected === opt.id
                   ? 'bg-[#F59E0B] text-[#0F172A]'
@@ -69,11 +78,12 @@ function AddFundsModal({ onClose }: { onClose: () => void }) {
             {option.symbol}
           </span>
           <input
-            type="number"
-            min="0"
-            step="any"
-            value={amount}
-            onChange={e => setAmount(e.target.value)}
+            type="text"
+            inputMode="decimal"
+            value={displayValue}
+            onChange={e => setRawAmount(e.target.value.replace(/[^0-9.]/g, ''))}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
             placeholder={option.placeholder}
             className="w-full bg-[#1E293B] border border-[#334155] rounded-xl pl-9 pr-4 py-3 text-[#F8FAFC] text-base placeholder-[#475569] focus:outline-none focus:border-[#F59E0B]"
           />
@@ -81,7 +91,7 @@ function AddFundsModal({ onClose }: { onClose: () => void }) {
 
         <button
           onClick={handleConfirm}
-          disabled={!amount || parseFloat(amount) <= 0}
+          disabled={numericValue <= 0}
           className="w-full bg-[#F59E0B] text-[#0F172A] py-3 rounded-xl font-semibold disabled:opacity-40 hover:bg-[#FBBF24] active:scale-95 transition-all"
         >
           Confirmar
@@ -98,6 +108,19 @@ export default function Dashboard() {
   const [showAddFunds, setShowAddFunds] = useState(false)
   const [showAddCard, setShowAddCard] = useState(false)
   const [editingCard, setEditingCard] = useState<PaymentSource | null>(null)
+  const [liveRates, setLiveRates] = useState<LiveRates | null>(getCachedRates)
+
+  useEffect(() => {
+    if (liveRates) return
+    const id = setInterval(() => {
+      const rates = getCachedRates()
+      if (rates) {
+        setLiveRates(rates)
+        clearInterval(id)
+      }
+    }, 2000)
+    return () => clearInterval(id)
+  }, [liveRates])
 
   const ownSources = sources.filter(s => s.kind === 'balance')
   const cardSources = sources.filter(s => s.kind === 'credit_card')
@@ -164,6 +187,36 @@ export default function Dashboard() {
           <p className="text-[#64748B] text-sm mt-1">USD equivalent · own funds</p>
         </div>
 
+        {/* Live Rates Strip */}
+        <div className="bg-[#1E293B] rounded-xl px-4 py-2.5 flex items-center justify-center gap-3 text-xs text-[#94A3B8]">
+          {liveRates ? (
+            <>
+              <span>
+                USD/ARS:{' '}
+                <span className="text-[#F59E0B] font-semibold">
+                  ${liveRates.arsExchangeRate.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </span>
+              <span className="text-[#334155]">|</span>
+              <span>
+                Best FCI:{' '}
+                <span className="text-emerald-400 font-semibold">
+                  {Math.max(...liveRates.fciTopFunds.map(f => f.tna)).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}% TNA
+                </span>
+              </span>
+              <span className="text-[#334155]">|</span>
+              <span>
+                Inflation:{' '}
+                <span className="text-[#F59E0B] font-semibold">
+                  {(liveRates.monthlyInflation * 100).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%/mo
+                </span>
+              </span>
+            </>
+          ) : (
+            <span className="text-[#64748B] animate-pulse">Loading rates...</span>
+          )}
+        </div>
+
         {/* Own Balances */}
         <div>
           <p className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wide mb-3">
@@ -173,8 +226,8 @@ export default function Dashboard() {
             {ownSources.map(source => {
               const colors = getSourceColors(source.id)
               const displayValue = source.currency === 'ARS'
-                ? source.available.toLocaleString()
-                : `$${source.available.toFixed(2)}`
+                ? `$${source.available.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                : `$${source.available.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
               return (
                 <div
                   key={source.id}
@@ -282,7 +335,7 @@ export default function Dashboard() {
                             className={`text-xs ${colors.bg} ${colors.text} px-2 py-0.5 rounded-full font-medium`}
                           >
                             {usage.currency === 'ARS'
-                              ? `ARS ${usage.amountOriginal.toLocaleString()}`
+                              ? `ARS ${usage.amountOriginal.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                               : `${usage.label} $${usage.amountUSD.toFixed(2)}`}
                           </span>
                         )

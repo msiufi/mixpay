@@ -18,9 +18,10 @@ export default function Checkout() {
   const { sources } = useSession()
 
   const [merchant, setMerchant] = useState('Nike Store')
-  const [amountStr, setAmountStr] = useState('20')
+  const [rawAmount, setRawAmount] = useState(2000) // cents
+  const [inputFocused, setInputFocused] = useState(false)
 
-  const amount = parseFloat(amountStr) || 0
+  const amount = rawAmount / 100
   const isValid = amount >= 1 && amount <= 500
 
   const cardSources = sources.filter(s => s.kind === 'credit_card')
@@ -29,6 +30,20 @@ export default function Checkout() {
     const cycle = getCycleStatus(s.closingDay, s.dueDay, new Date())
     return cycle.status === 'closing-soon'
   })
+
+  const displayValue = inputFocused
+    ? amount > 0 ? amount.toString() : ''
+    : amount.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
+  function handleAmountChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const val = e.target.value.replace(/[^0-9.]/g, '')
+    const num = parseFloat(val)
+    if (val === '' || val === '.') {
+      setRawAmount(0)
+    } else if (!isNaN(num)) {
+      setRawAmount(Math.round(num * 100))
+    }
+  }
 
   function handlePay() {
     if (!isValid) return
@@ -74,18 +89,18 @@ export default function Checkout() {
           <div className="flex items-center gap-2">
             <span className="text-4xl font-bold text-[#F59E0B]">$</span>
             <input
-              type="number"
-              min={1}
-              max={500}
-              step="0.01"
-              value={amountStr}
-              onChange={e => setAmountStr(e.target.value)}
+              type="text"
+              inputMode="decimal"
+              value={displayValue}
+              onChange={handleAmountChange}
+              onFocus={() => setInputFocused(true)}
+              onBlur={() => setInputFocused(false)}
               className="text-4xl font-bold text-[#F59E0B] bg-transparent border-none outline-none w-full tracking-tight"
               style={{ fontFamily: 'inherit' }}
             />
           </div>
           <p className="text-sm text-[#64748B] mt-2">United States Dollar · max $500</p>
-          {!isValid && amountStr !== '' && (
+          {!isValid && rawAmount > 0 && (
             <p className="text-xs text-rose-400 mt-1">Enter an amount between $1 and $500</p>
           )}
         </div>

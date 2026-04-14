@@ -71,7 +71,7 @@ export async function getAIExplanation(
   result: OptimizationResult,
 ): Promise<string> {
   const prompt = buildPrompt(merchant, amount, result)
-  const claudeResponse = await callClaude(prompt)
+  const claudeResponse = await callClaude(prompt, { maxTokens: 300 })
   if (claudeResponse) return claudeResponse
 
   // Fallback: simulate API latency then return template text

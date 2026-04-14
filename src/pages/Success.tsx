@@ -2,13 +2,17 @@
 import { useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import type { OptimizationResult } from '../types'
+import type { AgentPipelineResult } from '../lib/agents/types'
 import { getWorstCaseFee } from '../lib/optimizer'
+import { COMMISSION_RATE } from '../lib/config'
 import { getSourceColors } from '../lib/source-colors'
+import SmartInsightPanel from '../components/SmartInsightPanel'
 
 interface LocationState {
   merchant: string
   amount: number
   result: OptimizationResult
+  pipelineResult?: AgentPipelineResult
 }
 
 export default function Success() {
@@ -22,9 +26,11 @@ export default function Success() {
 
   if (!state) return null
 
-  const { merchant, amount, result } = state
+  const { merchant, amount, result, pipelineResult } = state
   const worstCaseFee = getWorstCaseFee(amount)
-  const savings = parseFloat((worstCaseFee - result.totalFees).toFixed(4))
+  const grossSavings = worstCaseFee - result.totalFees
+  const commission = parseFloat((grossSavings * COMMISSION_RATE).toFixed(2))
+  const savings = parseFloat((grossSavings - commission).toFixed(2))
   const hasCreditCard = result.sourceUsages.some(u => u.feeRate > 0.01)
 
   return (
@@ -73,7 +79,7 @@ export default function Success() {
                     <p className="font-semibold text-[#F8FAFC]">${usage.amountUSD.toFixed(2)}</p>
                     {usage.currency === 'ARS' && (
                       <p className="text-xs text-[#64748B]">
-                        {usage.amountOriginal.toLocaleString()} ARS
+                        {usage.amountOriginal.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ARS
                       </p>
                     )}
                   </div>
@@ -82,11 +88,15 @@ export default function Success() {
             })}
             <div className="flex justify-between items-center border-t border-[#334155] pt-3">
               <span className="text-sm text-[#64748B]">Conversion fees</span>
-              <span className="text-sm text-[#64748B]">${result.totalFees.toFixed(4)}</span>
+              <span className="text-sm text-[#64748B]">${result.totalFees.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-[#64748B]">MixPay fee ({(COMMISSION_RATE * 100).toFixed(0)}% of savings)</span>
+              <span className="text-sm text-[#64748B]">${commission.toFixed(2)}</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="font-bold text-[#F8FAFC]">Total charged</span>
-              <span className="font-bold text-[#F59E0B] text-lg">${amount.toFixed(2)}</span>
+              <span className="font-bold text-[#F59E0B] text-lg">${(amount + result.totalFees + commission).toFixed(2)}</span>
             </div>
           </div>
         </div>
@@ -99,19 +109,44 @@ export default function Success() {
             </p>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between text-[#94A3B8]">
-                <span>💳 Traditional Visa (3.5% fee)</span>
+                <span>Traditional Visa (3.5% fee)</span>
                 <span>${(amount + worstCaseFee).toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-[#94A3B8]">
-                <span>✨ With MixPay</span>
-                <span>${(amount + result.totalFees).toFixed(2)}</span>
+                <span>With MixPay (incl. fee)</span>
+                <span>${(amount + result.totalFees + commission).toFixed(2)}</span>
               </div>
               <div className="flex justify-between font-bold text-emerald-400 border-t border-emerald-500/20 pt-2">
                 <span>You saved</span>
-                <span>${savings.toFixed(2)} 🎉</span>
+                <span>${savings.toFixed(2)}</span>
               </div>
             </div>
           </div>
+        )}
+
+        {/* Pro upsell */}
+        <button
+          onClick={() => navigate('/pro')}
+          className="w-full bg-[#1E293B] border border-[#334155] rounded-xl px-4 py-3 flex items-center justify-between hover:border-[#F59E0B]/40 transition-colors group"
+        >
+          <div className="text-left">
+            <p className="text-sm font-medium text-[#F8FAFC]">
+              Remove the ${commission.toFixed(2)} commission
+            </p>
+            <p className="text-xs text-[#64748B]">
+              Upgrade to Pro — 0% commission on all payments
+            </p>
+          </div>
+          <span className="text-[#F59E0B] text-sm font-semibold group-hover:translate-x-0.5 transition-transform">
+            →
+          </span>
+        </button>
+
+        {/* Smart Insight Panel */}
+        {pipelineResult && (
+          <SmartInsightPanel
+            insights={pipelineResult.explanation.insightLines}
+          />
         )}
 
         {/* Info Cards */}
