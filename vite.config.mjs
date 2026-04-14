@@ -19,10 +19,10 @@ export default defineConfig({
           return `/api/${source}`
         },
       },
-      '/api/ipc': {
-        target: 'https://apis.datos.gob.ar',
+      '/api/inflation': {
+        target: 'https://api.argentinadatos.com',
         changeOrigin: true,
-        rewrite: () => '/series/api/series/?ids=103.1_I2N_2016_M_15&last=2&format=json',
+        rewrite: () => '/v1/finanzas/indices/inflacion',
       },
       '/api/rates': {
         target: 'https://dolarapi.com',

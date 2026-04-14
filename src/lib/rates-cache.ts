@@ -34,7 +34,7 @@ async function fetchLiveRates(): Promise<LiveRates> {
     fetchJson('/api/rates?type=mep', '/api/rates?type=mep'),
     fetchJson('/api/yields?source=config', '/api/yields?source=config'),
     fetchJson('/api/yields?source=cer-ultimo', '/api/yields?source=cer-ultimo'),
-    fetchJson('/api/ipc', 'https://apis.datos.gob.ar/series/api/series/?ids=103.1_I2N_2016_M_15&last=2&format=json'),
+    fetchJson('/api/inflation', 'https://api.argentinadatos.com/v1/finanzas/indices/inflacion'),
   ])
 
   // Parse dollar rates — take the best (highest) sell rate between oficial and MEP
@@ -65,14 +65,12 @@ async function fetchLiveRates(): Promise<LiveRates> {
   // Parse CER index (still useful for display)
   const cer = cerData as { cer?: number; valor?: number } | null
 
-  // Compute monthly inflation from INDEC IPC (last 2 data points)
+  // Parse monthly inflation from ArgentinaDatos (returns array of { fecha, valor })
   let monthlyInflation = ARG_MONTHLY_INFLATION // fallback from config
-  const ipc = ipcData as { data?: [string, number][] } | null
-  if (ipc?.data && ipc.data.length >= 2) {
-    const prev = ipc.data[0][1]
-    const curr = ipc.data[1][1]
-    if (prev > 0 && curr > 0) {
-      monthlyInflation = (curr - prev) / prev // e.g. (10991 - 10683) / 10683 = 0.0288
+  if (Array.isArray(ipcData) && ipcData.length > 0) {
+    const latest = (ipcData as { fecha: string; valor: number }[]).at(-1)
+    if (latest && typeof latest.valor === 'number') {
+      monthlyInflation = latest.valor / 100 // e.g. 2.9 → 0.029
     }
   }
 
