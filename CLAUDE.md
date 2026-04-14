@@ -15,72 +15,65 @@ npm run test:watch   # Run Vitest in watch mode
 
 ## Architecture
 
-MixPay is a React 19 + TypeScript SPA that uses AI-powered payment optimization. It uses Vite, React Router 7, and Tailwind CSS 4. Deployed to Vercel (`vercel.json` rewrites all routes to `index.html` for client-side routing). Build output goes to `build/` (not `dist/`).
+MixPay is a React 19 + TypeScript SPA that uses AI-powered payment optimization. Vite, React Router 7, Tailwind CSS 4. Deployed to Vercel. Build output goes to `build/` (not `dist/`).
 
 ### Route flow
 
 ```
 / (Dashboard) → /checkout → /optimizing → /success
+                                                → /pro (upgrade page)
 ```
 
 ### Multi-Agent Pipeline
 
-The optimization is handled by a Claude-powered agent pipeline (`src/lib/agents/orchestrator.ts`):
+The optimization is handled by a pipeline (`src/lib/agents/orchestrator.ts`):
 
 ```
 Orchestrator (TypeScript)
 ├── Rates Agent      (Haiku + tool_use → live ARS rates, FCI yields, inflation)
-├── Optimization Agent (Opus + extended thinking → true-cost allocation)
+├── Optimization Agent (Opus + math tools → deterministic allocation + AI reasoning)
 ├── Risk Agent       (Haiku → transaction safety check)
-└── Explanation Agent (Sonnet → smart insights)
+└── Explanation Agent (Sonnet → smart investment insights)
 ```
 
-**Agent data flow:**
-1. `Rates Agent` fetches live data from external financial APIs via `callClaudeWithTools`
-2. `Optimization Agent` streams extended thinking while reasoning about fees vs. opportunity cost
-3. `Risk Agent` runs in parallel with optimization (doesn't depend on its output)
-4. `Explanation Agent` receives everything and generates insights
-5. Orchestrator maps `OptimizationAgentResult` → `OptimizationResult` for backward compat
+**Math is always deterministic** — `src/lib/agents/math-tools.ts` computes the allocation. Claude only explains the reasoning. Without an API key, the exact same math runs — only explanations fall back to templates.
 
-The streaming hook (`src/hooks/useOptimizationStream.ts`) feeds agent events into `Optimizing.tsx` animation.
+**True cost formula**: `trueCost = fee + (realYield / 12)` where `realYield = nominalYield - inflation`. ARS uses Argentine inflation (~35%/yr), USD/USDC use US inflation (~3%/yr). Credit cards have 0 opportunity cost.
 
-**No API key?** Falls back to the deterministic greedy optimizer in `src/lib/agents/fallback.ts`.
+### Live data
 
-### Key concept: True Cost
+Rates are prefetched on Dashboard load (`src/lib/rates-cache.ts`), cached 2 minutes:
+- Dollar rates (oficial + MEP) from dolarapi.com
+- FCI yields from rendimientos.co
+- CER index from rendimientos.co
+- IPC inflation from INDEC (datos.gob.ar)
 
-Unlike simple fee minimization, the optimizer considers opportunity cost:
-```
-trueCost = fee + (amountUSD × yieldRate / 12)
-```
-Paying a 2.5% card fee can be cheaper than spending USDC earning 5% APY.
+CORS solved via Vite proxy (dev) and Vercel serverless functions (prod) in `api/`.
 
-### Global state
+### State persistence
 
-`SessionContext` (`src/context/SessionContext.tsx`) holds the entire app state:
-- `sources` — payment source balances (USD, USDC, ARS, credit card) with `yieldRate`
-- `transactions` — history of completed payments
-- `applyPayment()` — deducts from sources and appends to transaction history
-
-State is in-memory only; it resets on page reload.
+`SessionContext` persists sources + transactions to localStorage. Survives F5. Reset button clears all.
 
 ### Key file locations
 
-- `src/lib/agents/` — all 5 agents + types + fallback
+- `src/lib/agents/` — all agents + math tools + types + fallback
 - `src/lib/claude-client.ts` — 3 functions: `callClaude`, `callClaudeStreaming`, `callClaudeWithTools`
-- `src/lib/optimizer.ts` — deterministic fallback algorithm
+- `src/lib/config.ts` — all configurable values (models, commission, inflation rates)
+- `src/lib/format.ts` — `fmt()` helper for es-AR number formatting
+- `src/lib/rates-cache.ts` — live data fetching + caching
 - `src/hooks/useOptimizationStream.ts` — maps agent events to React state
-- `src/components/SmartInsightPanel.tsx` — opportunity cost insights on Success page
-- `api/` — Vercel serverless routes proxying external financial APIs (CORS)
+- `src/components/SmartInsightPanel.tsx` — investment insights on Success page
+- `api/` — Vercel serverless routes proxying external APIs
 - `mcp-servers/argentina-finance/` — standalone MCP server for Claude Desktop/Code
 
 ### Styling
 
-Pure Tailwind utility classes; no component library. Dark blue theme (`#0F172A` background, `#F59E0B` amber accent), mobile-first (`max-w-sm` containers).
+Tailwind CSS, dark theme (`#0F172A` bg, `#F59E0B` amber accent), mobile-first. All numbers use `es-AR` locale via `fmt()`.
 
 ## Environment
 
-Set `VITE_CLAUDE_API_KEY` to enable the AI agent pipeline. The app degrades gracefully without it (uses deterministic optimizer + template insights).
+Set `VITE_CLAUDE_API_KEY` to enable the AI agents. The app works without it (deterministic math + template insights).
 
 ## TypeScript config
 
-Strict mode is on: `noUnusedLocals` and `noUnusedParameters` are enforced. Target is ES2023, module resolution is `bundler`.
+Strict mode: `noUnusedLocals` and `noUnusedParameters` enforced. Target ES2023, bundler resolution.

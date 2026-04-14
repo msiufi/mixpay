@@ -2,15 +2,31 @@
 
 ## Qué es MixPay
 
-MixPay es una app de optimización de pagos potenciada por inteligencia artificial. En lugar de pagar con una sola fuente (tarjeta, efectivo, crypto), MixPay analiza todas tus fuentes de pago y elige la **combinación óptima** considerando comisiones Y costo de oportunidad.
+MixPay es una app de optimización de pagos potenciada por inteligencia artificial. En lugar de pagar con una sola fuente (tarjeta, efectivo, crypto), MixPay analiza todas tus fuentes de pago y elige la **combinación óptima** considerando comisiones, rendimientos Y la inflación de cada moneda.
 
-**Concepto clave (True Cost):** A veces es más barato pagar con tarjeta de crédito (2.5% de comisión) y mantener tus pesos invertidos en un FCI al 29% TNA, que gastar esos pesos directamente.
+**Concepto clave (True Cost):** A veces es más barato pagar con tarjeta de crédito (2,5% de comisión) y mantener tus pesos invertidos, que gastar esos pesos que están perdiendo valor contra la inflación.
+
+---
+
+## Qué hace la IA vs. qué hace la matemática
+
+La **matemática es siempre la misma** — con o sin API key de Claude. Lo que la IA agrega es la capa de explicación y personalización.
+
+| Funcionalidad | Sin API key | Con API key |
+|---------------|------------|-------------|
+| **Tasas en vivo** | Fetch HTTP directo (dolarapi, INDEC, rendimientos) | Igual — el caché las resuelve |
+| **Ranking de costo verdadero** | Math tools calculan el orden óptimo | Igual — mismas math tools |
+| **Asignación de pago** | Math tools calculan montos exactos | Igual — mismas math tools |
+| **Razonamiento** | Texto genérico | **Opus explica POR QUÉ** se eligió cada fuente |
+| **Evaluación de riesgo** | Siempre "riesgo bajo" | **Haiku evalúa** si la transacción es inusual |
+| **Insights de inversión** | Plantilla con datos de FCI | **Sonnet genera** recomendaciones personalizadas con nombres de productos y comparación vs inflación |
+| **Explicación en Dashboard** | Plantilla de texto | **Claude genera** explicación personalizada por transacción |
+
+**Resumen:** La IA no hace las cuentas (son determinísticas y precisas). La IA **explica, evalúa y recomienda**.
 
 ---
 
 ## Arquitectura Multi-Agente
-
-MixPay usa un pipeline de 4 agentes de Claude coordinados por un orquestador en TypeScript:
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -27,7 +43,7 @@ MixPay usa un pipeline de 4 agentes de Claude coordinados por un orquestador en 
    │   Rates   │  │ Optimize  │  │   Risk    │
    │   Agent   │  │   Agent   │  │   Agent   │
    │  (Haiku)  │  │  (Opus)   │  │  (Haiku)  │
-   │ tool_use  │  │ thinking  │  │   rápido  │
+   │ tool_use  │  │math+razón │  │   rápido  │
    └───────────┘  └───────────┘  └───────────┘
                         │
                         ▼
@@ -38,6 +54,8 @@ MixPay usa un pipeline de 4 agentes de Claude coordinados por un orquestador en 
                   └───────────┘
 ```
 
+Adicionalmente, en el Dashboard cada transacción tiene un botón **"AI Explanation"** que llama a Claude directamente (`src/lib/ai-explanation.ts`) para generar una explicación personalizada de esa transacción específica.
+
 ---
 
 ## Agentes en detalle
@@ -46,55 +64,65 @@ MixPay usa un pipeline de 4 agentes de Claude coordinados por un orquestador en 
 
 **Archivo:** `src/lib/agents/rates-agent.ts`
 **Modelo:** `claude-haiku-4-5-20251001`
-**Feature de Claude:** `tool_use` (uso de herramientas)
+**Feature de Claude:** `tool_use`
 
-**Qué hace:** Obtiene datos financieros argentinos en tiempo real usando 3 herramientas:
+**Cuándo se usa:** Solo como último recurso. Normalmente las tasas se obtienen por HTTP directo (sin Claude) y se cachean por 2 minutos.
 
-| Herramienta | API externa | Dato que obtiene |
-|-------------|------------|------------------|
-| `get_ars_exchange_rate` | dolarapi.com (dólar blue) | Cotización ARS/USD (compra y venta) |
-| `get_investment_yields` | API de mercado financiero | Rendimientos de FCI, cuentas remuneradas (TNA) |
-| `get_inflation_data` | API del BCRA (CER) | Índice CER de inflación del BCRA |
+**Herramientas:**
 
-**Flujo:** Claude Haiku recibe las 3 herramientas → decide llamarlas todas → recibe los resultados → devuelve un JSON con las tasas enriquecidas.
-
-**Optimización:** Normalmente NO se ejecuta durante el pago porque las tasas se pre-cargan cuando el usuario abre la app (ver "Sistema de Caché" abajo).
-
-**Valores de fallback** (si las APIs fallan): ARS=1400, TNA=40%, inflación=2.9%
+| Herramienta | Qué obtiene |
+|-------------|-------------|
+| `get_ars_exchange_rate` | Cotización oficial/MEP del dólar |
+| `get_investment_yields` | Rendimientos de FCI y cuentas remuneradas |
+| `get_inflation_data` | Índice CER del BCRA |
 
 ---
 
-### 2. Optimization Agent — El cerebro de la optimización
+### 2. Optimization Agent — Matemática precisa + razonamiento de Claude
 
 **Archivo:** `src/lib/agents/optimization-agent.ts`
-**Modelo:** `claude-opus-4-6`
-**Features de Claude:** `extended thinking` (pensamiento extendido) + `streaming`
+**Modelo:** `claude-opus-4-6` (configurable en `config.ts`)
 
-**Configuración:**
+**Proceso en 2 pasos:**
+
+**Paso 1 — Matemática determinística (sin LLM):**
+
+Las math tools (`src/lib/agents/math-tools.ts`) calculan con precisión:
+
+1. `calculate_true_costs()` — Ranking de costo verdadero por fuente, devuelve `optimalOrder`
+2. `allocate_payment(source_order)` — Asignación exacta de montos usando ese orden
+
+**Fórmula de Costo Verdadero (por dólar gastado):**
 ```
-thinking: { type: 'enabled', budget_tokens: 10000 }
-maxTokens: 16000
+rendimientoReal = tasaNominal - inflaciónDeLaMoneda
+
+Para ARS: rendimientoReal = 29% TNA - 35% inflación argentina = -6%
+Para USD: rendimientoReal = 4,2% - 3% inflación EEUU = +1,2%
+Para USDC: rendimientoReal = 5,1% - 3% inflación EEUU = +2,1%
+Para tarjetas: costoOportunidad = 0 (es plata prestada)
+
+costoOportunidadMensual = rendimientoReal / 12
+costoVerdadero = comisión + costoOportunidadMensual
 ```
 
-**Qué hace:** Reemplaza el algoritmo greedy hardcodeado por razonamiento de IA. Considera el **costo verdadero** de cada fuente de pago:
+**Ejemplo con datos reales:**
+| Fuente | Comisión | Rend. Real | Costo Verdadero |
+|--------|----------|------------|-----------------|
+| ARS | 0,5% | -6%/12 = -0,50% | **0,00%** (conviene gastarlos) |
+| USD Cash | 0% | +1,2%/12 = +0,10% | **0,10%** |
+| USDC | 0% | +2,1%/12 = +0,18% | **0,18%** |
+| Mastercard | 2,5% | 0% | **2,50%** |
+| Visa | 3,5% | 0% | **3,50%** |
 
-```
-Fórmula de Costo Verdadero (horizonte 1 mes):
-  comisión          = monto × tasaComisión
-  costoOportunidad  = monto × (tasaRendimiento / 12)
-  costoVerdadero    = comisión + costoOportunidad
-```
+**Orden óptimo:** ARS → USD → USDC → Mastercard → Visa
 
-**Ejemplo de razonamiento:**
-- ARS: comisión 0.5% + rendimiento perdido 29%/12 = **2.92% costo verdadero**
-- Mastercard: comisión 2.5% + rendimiento perdido 0% = **2.5% costo verdadero**
-- → Mastercard es MÁS BARATA que gastar los pesos
+**Insight clave:** Los pesos argentinos se gastan primero porque su rendimiento real es negativo — pierden valor contra la inflación más rápido de lo que rinden en un FCI.
 
-**Insight clave:** Las tarjetas de crédito tienen costoOportunidad = 0 porque usás plata prestada, no tu plata invertida.
+**Paso 2 — Claude explica (solo con API key):**
 
-**Streaming:** El pensamiento de Claude se muestra en tiempo real en la UI como un snippet en itálica gris mientras razona.
-
-**Fallback:** Si el streaming falla o el JSON no parsea, usa el optimizador determinístico como respaldo.
+Opus recibe el resultado de las math tools y genera:
+- `reasoning`: "Se eligió Mastercard sobre Visa porque 2,5% < 3,5%. Los pesos se gastaron primero porque pierden valor real."
+- `alternativeConsidered`: "Guardar los pesos y usar solo tarjeta hubiera costado más en fees."
 
 ---
 
@@ -102,23 +130,15 @@ Fórmula de Costo Verdadero (horizonte 1 mes):
 
 **Archivo:** `src/lib/agents/risk-agent.ts`
 **Modelo:** `claude-haiku-4-5-20251001`
-**Feature de Claude:** llamada rápida (sin streaming, sin herramientas)
+**Feature de Claude:** llamada rápida (sin herramientas)
 
 **Qué evalúa:**
-- ¿El monto es inusualmente alto comparado con el historial reciente?
-- ¿El comercio es sospechoso o potencialmente fraudulento?
-- ¿El pago agotaría una gran parte de los fondos del usuario?
+- ¿El monto es inusualmente alto comparado con el historial?
+- ¿El comercio es sospechoso?
+- ¿El pago agotaría una gran parte de los fondos?
 
-**Respuesta:**
-```json
-{
-  "level": "low" | "medium" | "high",
-  "flags": ["motivos específicos de preocupación"],
-  "recommendation": "una oración de recomendación"
-}
-```
-
-**Ejecución:** Corre en **paralelo** con el Optimization Agent (no depende de su resultado).
+**Sin API key:** Siempre devuelve "riesgo bajo".
+**Con API key:** Haiku analiza en tiempo real. Corre en **paralelo** con el Optimization Agent.
 
 ---
 
@@ -126,19 +146,35 @@ Fórmula de Costo Verdadero (horizonte 1 mes):
 
 **Archivo:** `src/lib/agents/explanation-agent.ts`
 **Modelo:** `claude-sonnet-4-6`
-**Feature de Claude:** llamada estándar con prompt rico
 
-**Qué genera:** 3 insights específicos para el panel "Smart Insights" en la pantalla de éxito:
+**Genera exactamente 3 insights con reglas estrictas:**
 
-1. **savings** — Cuánto ahorraste vs. pagar todo con Visa (3.5% de comisión)
-2. **opportunity_cost** — Si se mantuvieron fondos invertidos, cuánto ganás por no gastarlos
-3. **invest_suggestion** — Recomendación de inversión **con nombre específico** del producto y su TNA (ej: "Invertí tus pesos en Ualá Plus 2 al 29% TNA")
+| # | Tipo | Qué muestra |
+|---|------|-------------|
+| 1 | `savings` | Ahorro en comisiones vs Visa 3,5% |
+| 2 | `opportunity_cost` | Rendimiento real ajustado por inflación (ARS vs inflación argentina, USD vs inflación EEUU — nunca mezclar) |
+| 3 | `invest_suggestion` | Recomendación de productos específicos por nombre y TNA vs inflación |
 
-**Datos que recibe:** Resultado de optimización completo + datos de FCI en vivo + evaluación de riesgo + fuentes enriquecidas con rendimientos.
+**Reglas del prompt:**
+- Nunca comparar USD/USDC con inflación argentina
+- Nunca sugerir "invertir" el límite de tarjeta de crédito
+- Solo usar los números exactos provistos
+- deltaUSD siempre debe ser un número
 
 ---
 
-### 5. Fallback — Modo sin API key
+### 5. AI Explanation (Dashboard)
+
+**Archivo:** `src/lib/ai-explanation.ts`
+
+Cuando el usuario toca **"AI Explanation"** en una transacción del historial, se hace una llamada directa a Claude (no pasa por el pipeline de agentes) para generar una explicación personalizada de esa transacción.
+
+**Con API key:** Claude genera 2-3 oraciones explicando por qué se eligió esa combinación.
+**Sin API key:** Texto de plantilla generado localmente.
+
+---
+
+### 6. Fallback — Modo sin API key
 
 **Archivo:** `src/lib/agents/fallback.ts`
 
@@ -147,65 +183,97 @@ Fórmula de Costo Verdadero (horizonte 1 mes):
 - Cualquier error inesperado en el pipeline
 
 **Qué hace:**
-- Usa el algoritmo determinístico original (`optimizePayment()`)
+- Usa las **mismas math tools** que el pipeline con IA (mismo ranking, misma asignación)
 - Genera insights de plantilla (sin IA)
-- Emite eventos falsos para que la animación de la UI funcione igual
-- La app funciona completa sin API key — solo pierde la inteligencia de los agentes
+- Emite eventos para que la animación de la UI funcione igual
+- Si el pago excede los fondos disponibles, el botón se deshabilita
 
 ---
 
-## Sistema de Caché de Tasas
+## Math Tools — Las herramientas de cálculo
+
+**Archivo:** `src/lib/agents/math-tools.ts`
+
+Estas herramientas hacen TODA la matemática. Ni Claude ni ningún LLM hace cuentas.
+
+| Herramienta | Input | Output |
+|-------------|-------|--------|
+| `calculate_true_costs` | (nada) | Ranking de fuentes por costo verdadero + `optimalOrder` |
+| `allocate_payment` | `source_order: string[]` | Asignación precisa: montos, fees, costo oportunidad |
+| `compare_strategies` | Dos órdenes distintos | Comparación lado a lado, ganador, diferencia |
+
+---
+
+## Sistema de Caché y Datos en Vivo
 
 **Archivo:** `src/lib/rates-cache.ts`
 
-**Problema:** No queremos que el usuario espere mientras se cargan las tasas al momento de pagar.
+**Datos que obtiene (en paralelo al cargar la app):**
 
-**Solución:** Pre-carga en background cuando el usuario abre la app.
+| Fuente | Proxy | API externa | Dato |
+|--------|-------|-------------|------|
+| Dólar oficial | `/api/rates?type=oficial` | dolarapi.com | Cotización compra/venta |
+| Dólar MEP | `/api/rates?type=mep` | dolarapi.com | Cotización compra/venta |
+| FCI/Rendimientos | `/api/yields?source=config` | rendimientos.co | Nombre, TNA, tipo |
+| CER | `/api/yields?source=cer-ultimo` | rendimientos.co | Índice CER del BCRA |
+| IPC (inflación) | `/api/ipc` | datos.gob.ar (INDEC) | Últimos 2 valores del IPC |
 
+**Cómo calcula la inflación:**
 ```
-Usuario abre Dashboard
-        ↓
-prefetchRates() se dispara (useEffect en SessionContext)
-        ↓
-3 requests en paralelo:
-  ├── /api/rates?type=blue     → dólar blue
-  ├── /api/yields?source=config → FCI/rendimientos
-  └── /api/yields?source=cer-ultimo → inflación CER
-        ↓
-Datos cacheados en memoria (TTL: 2 minutos)
-        ↓
-Usuario hace un pago → tasas disponibles INSTANTÁNEAMENTE
+inflación mensual = (IPC actual - IPC anterior) / IPC anterior
+Ejemplo: (10.991 - 10.683) / 10.683 = 2,88%
 ```
 
-**Estrategia de resolución (en orden):**
-1. **Caché en memoria** — instantáneo, sin red
-2. **Fetch directo** — HTTP paralelo, sin Claude
-3. **Rates Agent** — Claude Haiku con tool_use (último recurso)
+**Cómo elige el tipo de cambio:**
+```
+arsExchangeRate = max(oficial.venta, mep.venta) || 1400
+```
+
+**TTL del caché:** 2 minutos. Se pre-carga cuando el usuario abre el Dashboard.
+
+**Valores de fallback** (si todas las APIs fallan):
+- ARS/USD: 1400
+- FCI: Bank Money Market (est.) al 20% TNA
+- Inflación: 2,9% mensual
+- Inflación EEUU: 3% anual
+
+---
+
+## Persistencia de Datos
+
+**Archivo:** `src/context/SessionContext.tsx`
+
+Los datos sobreviven al refresco del browser (F5):
+
+| Dato | Storage Key | Qué guarda |
+|------|------------|------------|
+| Fuentes (saldos + tarjetas) | `mixpay_sources` | Array completo de PaymentSource |
+| Transacciones | `mixpay_transactions` | Historial de pagos |
+| Tarjetas (legacy) | `mixpay_cards` | Solo tarjetas de crédito |
+
+El botón **Reset** (↩ en el header) borra todo y restaura los valores por defecto.
 
 ---
 
 ## Proxy de APIs (CORS)
 
-Las APIs externas (dolarapi.com, APIs financieras) no permiten llamadas directas desde el browser (CORS). Se resuelve con:
+### Desarrollo local (Vite proxy en `vite.config.mjs`)
 
-### Desarrollo local (Vite proxy)
-**Archivo:** `vite.config.mjs`
+| Ruta local | API externa |
+|------------|------------|
+| `/api/rates?type=oficial` | dolarapi.com/v1/dolares/oficial |
+| `/api/rates?type=mep` | dolarapi.com/v1/dolares/bolsa |
+| `/api/yields?source=config` | rendimientos.co/api/config |
+| `/api/yields?source=cer-ultimo` | rendimientos.co/api/cer-ultimo |
+| `/api/ipc` | datos.gob.ar (INDEC IPC serie 103.1) |
 
-```
-/api/rates?type=blue    → proxy a dolarapi.com/v1/dolares/blue
-/api/yields?source=config → proxy a API de mercado financiero
-```
+### Producción (Vercel serverless en `api/`)
 
-### Producción (Vercel serverless functions)
-**Archivos:** `api/yields.ts`, `api/rates.ts`
-
-| Ruta | API externa | Caché servidor |
-|------|------------|----------------|
-| `/api/rates?type=blue` | dolarapi.com/v1/dolares/blue | 1 min |
-| `/api/rates?type=mep` | dolarapi.com/v1/dolares/bolsa | 1 min |
-| `/api/yields?source=config` | API de mercado financiero | 2 min |
-| `/api/yields?source=cer-ultimo` | API del BCRA (CER) | 2 min |
-| `/api/yields?source=lecaps` | APIs financieras/api/lecaps | 2 min |
+| Archivo | Rutas | Caché servidor |
+|---------|-------|---------------|
+| `api/rates.ts` | `all`, `blue`, `oficial`, `mep`, `ccl`, `tarjeta`, `cripto` | 60s |
+| `api/yields.ts` | `fci`, `config`, `cer`, `cer-ultimo`, `lecaps`, `mundo` | 120s |
+| `api/ipc.ts` | Serie IPC de INDEC | 1 hora |
 
 ---
 
@@ -213,46 +281,58 @@ Las APIs externas (dolarapi.com, APIs financieras) no permiten llamadas directas
 
 **Directorio:** `mcp-servers/argentina-finance/`
 
-Server MCP (Model Context Protocol) independiente para usar con Claude Desktop o Claude Code. Expone las mismas APIs financieras como herramientas:
+Server independiente para Claude Desktop o Claude Code con 7 herramientas:
 
-| Herramienta | Fuente | Datos |
-|-------------|--------|-------|
-| `get_dollar_rates` | dolarapi.com | Todas las cotizaciones (blue, oficial, MEP, CCL, tarjeta, cripto) |
-| `get_fci_yields` | APIs financieras | Rendimientos de FCI con TNA |
-| `get_inflation_rate` | BCRA vía APIs financieras | Índice CER |
-| `get_market_data` | APIs financieras | Indicadores globales (S&P, Bitcoin, Oro) |
-| `get_lecap_rates` | APIs financieras | LECAPs/BONCAPs con TIR/TNA |
+| Herramienta | Datos |
+|-------------|-------|
+| `get_dollar_rates` | Todas las cotizaciones (oficial, blue, MEP, CCL, tarjeta, cripto) |
+| `get_fci_yields` | Rendimientos de FCI |
+| `get_inflation_rate` | Índice CER del BCRA |
+| `get_market_data` | Indicadores globales (S&P, Bitcoin, Oro) |
+| `get_lecap_rates` | LECAPs/BONCAPs con TIR/TNA |
+| `calculate_true_costs` | Ranking de costo verdadero por fuente |
+| `allocate_payment` | Asignación óptima de un pago |
 
-**Instalación:**
-```bash
-cd mcp-servers/argentina-finance
-npm install
-npm start
-```
+---
 
-**Configuración en Claude Desktop** (`claude_desktop_config.json`):
-```json
-{
-  "mcpServers": {
-    "argentina-finance": {
-      "command": "node",
-      "args": ["ruta/a/mcp-servers/argentina-finance/index.js"]
-    }
-  }
-}
-```
+## Modelo de Monetización
+
+**Comisión:** 10% del ahorro generado (configurable en `config.ts`)
+
+| Plan | Precio | Comisión | Features |
+|------|--------|----------|----------|
+| Free | $0/mes | 10% | Optimización AI, hasta 5 fuentes, insights básicos |
+| Pro | $4,99/mes | 0% | Fuentes ilimitadas, insights avanzados, prioridad AI, exportar historial |
+| Business | $19,99/mes | 0% | Todo de Pro + cuentas de equipo, acceso API, estrategias custom |
+
+---
+
+## Configuración (`src/lib/config.ts`)
+
+| Variable | Valor | Descripción |
+|----------|-------|-------------|
+| `COMMISSION_RATE` | 0.10 | 10% del ahorro |
+| `OPTIMIZATION_MODEL` | `claude-opus-4-6` | Modelo para optimización (demo) |
+| `EXPLANATION_MODEL` | `claude-sonnet-4-6` | Modelo para explicación |
+| `RISK_MODEL` | `claude-haiku-4-5-20251001` | Modelo para riesgo |
+| `RATES_MODEL` | `claude-haiku-4-5-20251001` | Modelo para tasas |
+| `WORST_CASE_FEE_RATE` | 0.035 | Visa 3,5% (benchmark) |
+| `ARG_MONTHLY_INFLATION` | 0.029 | Inflación mensual argentina (fallback) |
+| `US_ANNUAL_INFLATION` | 0.03 | Inflación anual EEUU |
+
+Para producción, cambiar `OPTIMIZATION_MODEL` a `claude-sonnet-4-6` reduce el costo de ~$0,17 a ~$0,04 por pago.
 
 ---
 
 ## Features de Claude API utilizadas
 
-| Feature | Dónde se usa | Por qué |
-|---------|-------------|---------|
-| **Extended Thinking** | Optimization Agent (Opus) | Razonamiento profundo sobre asignación óptima |
-| **Streaming SSE** | Optimization Agent | Muestra el pensamiento en tiempo real en la UI |
-| **Tool Use** | Rates Agent (Haiku) | Consulta APIs externas de forma autónoma |
-| **Multi-modelo** | Haiku (rápido), Opus (razonamiento), Sonnet (explicación) | Cada agente usa el modelo óptimo para su tarea |
-| **MCP** | Server standalone | Herramientas financieras para Claude Desktop/Code |
+| Feature | Dónde | Para qué |
+|---------|-------|----------|
+| **Tool Use** | Rates Agent (3 herramientas financieras) | Consultar APIs de mercado |
+| **Tool Use** | Optimization Agent (3 math tools) | Cálculos precisos de asignación |
+| **Multi-modelo** | Opus, Sonnet, Haiku | Cada agente usa el modelo óptimo |
+| **Streaming SSE** | Optimizing page | Animación en tiempo real |
+| **MCP** | Server standalone | Herramientas para Claude Desktop/Code |
 
 ---
 
@@ -266,7 +346,9 @@ npm start
 | Build | Vite 8 |
 | Deploy | Vercel |
 | IA | Claude API (Opus 4.6, Sonnet 4.6, Haiku 4.5) |
-| APIs financieras | dolarapi.com, APIs financieras, BCRA |
+| Datos financieros | dolarapi.com, datos.gob.ar (INDEC), rendimientos.co |
+| Persistencia | localStorage |
+| Formato numérico | es-AR (. miles, , decimales) |
 
 ---
 
@@ -274,26 +356,36 @@ npm start
 
 ```
 1. Dashboard (/)
-   └── prefetchRates() carga tasas en background
-   └── Muestra saldos, tarjetas, historial
+   └── prefetchRates() carga tasas en background (dólar, FCI, IPC)
+   └── Strip de tasas en vivo: USD/ARS · Mejor FCI · Inflación
+   └── Badge "Saved $X" con ahorro total acumulado
+   └── Muestra saldos, tarjetas (agregar/editar/eliminar), historial
+   └── Botón "AI Explanation" por transacción (Claude directo)
+   └── Estado persiste en localStorage (sobrevive F5)
 
 2. Checkout (/checkout)
-   └── Usuario elige comercio y monto
+   └── Usuario elige comercio y monto (sin límite, formato es-AR)
 
 3. Optimizing (/optimizing)
-   └── useOptimizationStream hook activa el orquestador
-   └── Fases de animación en tiempo real:
-       "Usando datos de mercado cacheados" → instantáneo
-       "IA razonando la mejor combinación..." → Opus piensa
-       "Verificando seguridad..." → Haiku evalúa riesgo
-       "Construyendo insights..." → Sonnet genera insights
+   └── Stepper: ● Rates → ● Optimize → ● Risk → ● Insight
+   └── Math tools calculan asignación óptima (determinístico)
+   └── Claude Opus explica el razonamiento (si hay API key)
+   └── Claude Haiku evalúa riesgo (en paralelo)
+   └── Claude Sonnet genera insights personalizados
+   └── Badge de tool calls: ⚡ calculate_true_costs()
+   └── Si fondos insuficientes: warning rojo + botón deshabilitado
    └── Botón "Confirmar Pago" aparece al completar
 
 4. Success (/success)
-   └── Desglose del pago
-   └── Ahorro vs Visa tradicional
+   └── Desglose del pago (formato es-AR)
+   └── Ahorro vs Visa + comisión MixPay (10% del ahorro)
+   └── Botón "Eliminar comisión → Pro"
    └── Panel "Smart Insights" con 3 insights:
        - Ahorro en comisiones
-       - Costo de oportunidad (por qué no gastó ARS)
+       - Rendimiento real vs inflación (por moneda)
        - Recomendación de inversión con producto específico
+
+5. Pro (/pro)
+   └── 3 planes: Free / Pro / Business
+   └── CTA para upgrade
 ```
