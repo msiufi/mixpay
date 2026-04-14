@@ -76,7 +76,7 @@ const toolHandlers: Record<string, (input: Record<string, unknown>) => Promise<u
         .sort((a, b) => b.tna - a.tna)
         .slice(0, 5)
 
-      const bestTna = funds.length > 0 ? funds[0].tna : 40
+      const bestTna = funds.length > 0 ? funds[0].tna : 29
       return {
         topFunds: funds,
         bestAnnualYield: bestTna / 100,
@@ -85,7 +85,7 @@ const toolHandlers: Record<string, (input: Record<string, unknown>) => Promise<u
       }
     }
     return {
-      topFunds: [{ name: 'FCI Money Market (est.)', tna: 40 }],
+      topFunds: [{ name: 'Ualá Plus 2 (est.)', tna: 29 }],
       bestAnnualYield: 0.40,
       source: 'fallback',
       live: false,
@@ -169,7 +169,7 @@ export async function runRatesAgent(
 
   const liveRates: LiveRates = {
     arsExchangeRate: arsRate,
-    fciTopFunds: fciTopFunds.length > 0 ? fciTopFunds : [{ name: 'FCI Money Market (est.)', tna: 40 }],
+    fciTopFunds: fciTopFunds.length > 0 ? fciTopFunds : [{ name: 'Ualá Plus 2 (est.)', tna: 29 }],
     monthlyInflation,
     usAnnualInflation: 0.03,
     marketData: (parsed.marketData ?? {}) as Record<string, number>,

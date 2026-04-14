@@ -59,7 +59,7 @@ async function fetchLiveRates(): Promise<LiveRates> {
       .slice(0, 5)
   }
   if (fciTopFunds.length === 0) {
-    fciTopFunds = [{ name: 'FCI Money Market (est.)', tna: 40 }]
+    fciTopFunds = [{ name: 'Ualá Plus 2 (est.)', tna: 29 }]
   }
 
   // Parse CER index (still useful for display)
@@ -120,7 +120,7 @@ export async function getRates(): Promise<LiveRates> {
     if (cache) return cache.liveRates
     return {
       arsExchangeRate: 1400,
-      fciTopFunds: [{ name: 'FCI Money Market (est.)', tna: 40 }],
+      fciTopFunds: [{ name: 'Ualá Plus 2 (est.)', tna: 29 }],
       monthlyInflation: ARG_MONTHLY_INFLATION,
       usAnnualInflation: US_ANNUAL_INFLATION,
       marketData: {},
