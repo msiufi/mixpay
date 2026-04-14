@@ -21,12 +21,20 @@ const FUND_OPTIONS: { id: FundCurrency; label: string; symbol: string; placehold
 function AddFundsModal({ onClose }: { onClose: () => void }) {
   const { addFunds } = useSession()
   const [selected, setSelected] = useState<FundCurrency>('usd')
-  const [amount, setAmount] = useState('')
+  const [rawAmount, setRawAmount] = useState('')
+  const [focused, setFocused] = useState(false)
+
+  const numericValue = parseFloat(rawAmount) || 0
+  const isArs = selected === 'ars'
+  const displayValue = focused
+    ? rawAmount
+    : numericValue > 0
+      ? numericValue.toLocaleString('en-US', { minimumFractionDigits: isArs ? 0 : 2, maximumFractionDigits: isArs ? 0 : 2 })
+      : ''
 
   function handleConfirm() {
-    const val = parseFloat(amount)
-    if (!val || val <= 0) return
-    addFunds(selected, val)
+    if (!numericValue || numericValue <= 0) return
+    addFunds(selected, numericValue)
     onClose()
   }
 
@@ -51,7 +59,7 @@ function AddFundsModal({ onClose }: { onClose: () => void }) {
           {FUND_OPTIONS.map(opt => (
             <button
               key={opt.id}
-              onClick={() => { setSelected(opt.id); setAmount('') }}
+              onClick={() => { setSelected(opt.id); setRawAmount('') }}
               className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${
                 selected === opt.id
                   ? 'bg-[#F59E0B] text-[#0F172A]'
@@ -69,11 +77,12 @@ function AddFundsModal({ onClose }: { onClose: () => void }) {
             {option.symbol}
           </span>
           <input
-            type="number"
-            min="0"
-            step="any"
-            value={amount}
-            onChange={e => setAmount(e.target.value)}
+            type="text"
+            inputMode="decimal"
+            value={displayValue}
+            onChange={e => setRawAmount(e.target.value.replace(/[^0-9.]/g, ''))}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
             placeholder={option.placeholder}
             className="w-full bg-[#1E293B] border border-[#334155] rounded-xl pl-9 pr-4 py-3 text-[#F8FAFC] text-base placeholder-[#475569] focus:outline-none focus:border-[#F59E0B]"
           />
@@ -81,7 +90,7 @@ function AddFundsModal({ onClose }: { onClose: () => void }) {
 
         <button
           onClick={handleConfirm}
-          disabled={!amount || parseFloat(amount) <= 0}
+          disabled={numericValue <= 0}
           className="w-full bg-[#F59E0B] text-[#0F172A] py-3 rounded-xl font-semibold disabled:opacity-40 hover:bg-[#FBBF24] active:scale-95 transition-all"
         >
           Confirmar
@@ -199,7 +208,7 @@ export default function Dashboard() {
             {ownSources.map(source => {
               const colors = getSourceColors(source.id)
               const displayValue = source.currency === 'ARS'
-                ? source.available.toLocaleString('en-US', { maximumFractionDigits: 2 })
+                ? source.available.toLocaleString('en-US', { maximumFractionDigits: 0 })
                 : `$${source.available.toFixed(2)}`
               return (
                 <div
