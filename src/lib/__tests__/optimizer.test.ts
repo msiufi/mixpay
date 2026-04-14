@@ -35,15 +35,18 @@ describe('optimizePayment', () => {
   })
 
   describe('credit card fallback', () => {
+    // Use a neutral date where no card is in closing-soon or new-period
+    const neutralDate = new Date(2026, 3, 1) // April 1
+
     it('uses Visa when own funds are insufficient (priority 4)', () => {
-      const result = optimizePayment(35, defaultSources)
+      const result = optimizePayment(35, defaultSources, neutralDate)
       const visa = result.sourceUsages.find(u => u.sourceId === 'visa')
       expect(visa).toBeDefined()
       expect(visa!.amountUSD).toBeCloseTo(15)
     })
 
     it('charges the correct fee rate for Visa (3.5%)', () => {
-      const result = optimizePayment(35, defaultSources)
+      const result = optimizePayment(35, defaultSources, neutralDate)
       const visa = result.sourceUsages.find(u => u.sourceId === 'visa')
       expect(visa?.fee).toBeCloseTo(visa!.amountUSD * 0.035)
     })
@@ -61,12 +64,12 @@ describe('optimizePayment', () => {
     })
 
     it('returns success: true for large amounts when credit cards are available', () => {
-      const result = optimizePayment(400, defaultSources)
+      const result = optimizePayment(400, defaultSources, new Date(2026, 3, 1))
       expect(result.success).toBe(true)
     })
 
     it('returns success: false when even cards cannot cover the amount', () => {
-      const result = optimizePayment(1000, defaultSources)
+      const result = optimizePayment(1000, defaultSources, new Date(2026, 3, 1))
       expect(result.success).toBe(false)
     })
   })
