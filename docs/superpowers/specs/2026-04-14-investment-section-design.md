@@ -131,16 +131,24 @@ Two-panel layout, consistent with MixPay's dark theme (`#0F172A` background, amb
 ### Right panel — Portfolio (220px fixed width)
 - Section label: "Portafolio"
 - Donut chart: CSS `conic-gradient` built from `allocation.assets`, with `$100` center label
-- Color legend per asset
+- Asset colors for the donut and legend:
+  | Asset ID | Color |
+  |----------|-------|
+  | `usd` | `#22C55E` (green) |
+  | `usdc` | `#3B82F6` (blue) |
+  | `ars` | `#A78BFA` (violet) |
+  | `btc` | `#F59E0B` (amber) |
+  | `sp500` | `#10B981` (emerald) |
+  | `tbond` | `#6366F1` (indigo) |
 - Risk badge: color-coded (green=low, yellow=medium, red=high)
 - Projected return card: shows `+$X.XX (~X.XX%)` in amber
 - "Confirmar estrategia →" button
 
 ### Confirm button behavior
 - Disabled until the user has at least one allocation in the chat
-- On click: replaces right panel content with a success banner ("¡Estrategia confirmada! Tu simulación quedó guardada.")
+- On click: shows a success banner inline ("¡Estrategia confirmada! Tu simulación quedó guardada.")
 - No navigation — stays on the same page
-- Button re-enables after 3 seconds with label "Reiniciar simulación"
+- After 3 seconds, button label changes to "Reiniciar simulación"; clicking it resets `messages` to the initial greeting and clears `allocation` back to `null`
 
 ### Initial state
 - Chat pre-populated with one assistant greeting message (no allocation)
