@@ -172,7 +172,7 @@ export default function Optimizing() {
                           </p>
                           {usage.currency === 'ARS' && (
                             <p className="text-xs opacity-70" style={{ color: 'inherit' }}>
-                              {usage.amountOriginal.toLocaleString()} ARS
+                              {usage.amountOriginal.toLocaleString('en-US', { maximumFractionDigits: 2 })} ARS
                             </p>
                           )}
                         </div>
@@ -194,12 +194,12 @@ export default function Optimizing() {
                   <div className="flex justify-between text-sm">
                     <span className="text-[#94A3B8]">Estimated fees</span>
                     <span className="font-medium text-[#F8FAFC]">
-                      ${result.totalFees.toFixed(4)} USD
+                      ${result.totalFees.toFixed(2)} USD
                     </span>
                   </div>
                   <div className="flex justify-between text-sm border-t border-[#334155] pt-2">
                     <span className="font-semibold text-[#F8FAFC]">Total</span>
-                    <span className="font-bold text-[#F8FAFC]">${(amount + result.totalFees).toFixed(4)} USD</span>
+                    <span className="font-bold text-[#F8FAFC]">${(amount + result.totalFees).toFixed(2)} USD</span>
                   </div>
                 </div>
               </div>

@@ -154,7 +154,7 @@ export default function Dashboard() {
             {ownSources.map(source => {
               const colors = getSourceColors(source.id)
               const displayValue = source.currency === 'ARS'
-                ? source.available.toLocaleString()
+                ? source.available.toLocaleString('en-US', { maximumFractionDigits: 2 })
                 : `$${source.available.toFixed(2)}`
               return (
                 <div
@@ -196,7 +196,7 @@ export default function Dashboard() {
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-[#F8FAFC] text-sm">{source.label}</p>
                       <p className="text-xs text-[#64748B]">
-                        {(source.feeRate * 100).toFixed(1)}% fee · ${source.available.toLocaleString()} limit
+                        {(source.feeRate * 100).toFixed(1)}% fee · ${source.available.toLocaleString('en-US', { maximumFractionDigits: 2 })} limit
                       </p>
                     </div>
                     <span className="text-xs bg-[#1E293B] text-[#64748B] px-2 py-1 rounded-full">
@@ -262,7 +262,7 @@ export default function Dashboard() {
                             className={`text-xs ${colors.bg} ${colors.text} px-2 py-0.5 rounded-full font-medium`}
                           >
                             {usage.currency === 'ARS'
-                              ? `ARS ${usage.amountOriginal.toLocaleString()}`
+                              ? `ARS ${usage.amountOriginal.toLocaleString('en-US', { maximumFractionDigits: 2 })}`
                               : `${usage.label} $${usage.amountUSD.toFixed(2)}`}
                           </span>
                         )

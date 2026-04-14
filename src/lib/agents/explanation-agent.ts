@@ -30,10 +30,15 @@ Return ONLY valid JSON (no markdown fences):
   ]
 }
 
+STRICT RULES:
+- Credit card available limit is NOT money the user owns. NEVER suggest "investing" credit card limits. Credit cards are borrowed money — they have no idle balance to invest.
+- Only suggest investing BALANCE sources (USD, USDC, ARS) — these are real funds the user owns.
+- deltaUSD must be a number, not a string.
+
 Generate exactly 3 insights:
 1. ALWAYS include a "savings" insight showing fee savings vs worst-case Visa
-2. If balance sources with yield > 0 were NOT spent (kept invested), add an "opportunity_cost" insight explaining the benefit of keeping them invested
-3. ALWAYS include an "invest_suggestion" insight that recommends SPECIFIC investment products by name from the FCI/investment data provided. Tell the user exactly WHERE to put their idle money (e.g. "Put your idle ARS in Ualá Plus 2 at 29% TNA").`
+2. If balance sources with yield > 0 were NOT spent (kept invested), add an "opportunity_cost" insight explaining the benefit of keeping them invested. If they WERE spent, explain the tradeoff.
+3. ALWAYS include an "invest_suggestion" insight that recommends SPECIFIC investment products by name from the FCI/investment data provided. Tell the user WHERE to put their idle BALANCE money — for ARS recommend specific FCI funds, for USD/USDC recommend keeping them in yield protocols. NEVER mention credit card limits here.`
 
 function buildPrompt(
   merchant: string,

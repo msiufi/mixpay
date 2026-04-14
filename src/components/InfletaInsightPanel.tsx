@@ -50,7 +50,7 @@ export default function InfletaInsightPanel({ insights, riskAssessment }: Props)
       {/* Insight rows */}
       <div className="space-y-3">
         {insights.map((insight, i) => {
-          const icon = ICONS[insight.kind]
+          const icon = ICONS[insight.kind] ?? ICONS.savings
           const deltaPositive = insight.deltaUSD >= 0
           return (
             <div key={i} className="flex gap-3">

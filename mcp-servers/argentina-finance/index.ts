@@ -135,6 +135,115 @@ server.tool(
   },
 )
 
+// ── Tool: calculate_true_costs ────────────────────────────────────────
+
+server.tool(
+  'calculate_true_costs',
+  'Calculates the true cost (fee + opportunity cost) for each payment source per 1 USD spent. Opportunity cost = annual yield / 12 (monthly). Credit cards have 0 opportunity cost since they use borrowed money. Returns sources ranked cheapest to most expensive.',
+  {
+    sources: z.array(z.object({
+      id: z.string(),
+      label: z.string(),
+      currency: z.string(),
+      available: z.number(),
+      feeRate: z.number().describe('Fee rate as decimal, e.g. 0.025 for 2.5%'),
+      yieldRate: z.number().describe('Annual yield as decimal, e.g. 0.29 for 29%'),
+      kind: z.enum(['balance', 'credit_card']),
+      exchangeRate: z.number().optional().describe('For ARS: ARS per 1 USD'),
+    })),
+  },
+  async ({ sources }) => {
+    const costs = sources.map(s => {
+      const availableUSD = s.currency === 'ARS' && s.exchangeRate
+        ? s.available / s.exchangeRate
+        : s.available
+      const feePerDollar = s.feeRate
+      const oppCostPerDollar = s.kind === 'credit_card' ? 0 : s.yieldRate / 12
+      const trueCostPerDollar = feePerDollar + oppCostPerDollar
+      return {
+        ...s,
+        availableUSD: parseFloat(availableUSD.toFixed(4)),
+        feePerDollar: parseFloat(feePerDollar.toFixed(6)),
+        opportunityCostPerDollar: parseFloat(oppCostPerDollar.toFixed(6)),
+        trueCostPerDollar: parseFloat(trueCostPerDollar.toFixed(6)),
+      }
+    }).sort((a, b) => a.trueCostPerDollar - b.trueCostPerDollar)
+
+    return { content: [{ type: 'text' as const, text: JSON.stringify(costs, null, 2) }] }
+  },
+)
+
+// ── Tool: allocate_payment ───────────────────────────────────────────
+
+server.tool(
+  'allocate_payment',
+  'Allocates a USD payment across sources in the given priority order, handling fees and currency conversion precisely. Returns exact amounts, fees, and opportunity costs for each source used.',
+  {
+    amountUSD: z.number().describe('Total payment amount in USD'),
+    sourceOrder: z.array(z.string()).describe('Source IDs in priority order'),
+    sources: z.array(z.object({
+      id: z.string(),
+      label: z.string(),
+      symbol: z.string().default('$'),
+      currency: z.string(),
+      available: z.number(),
+      feeRate: z.number(),
+      yieldRate: z.number(),
+      kind: z.enum(['balance', 'credit_card']),
+      exchangeRate: z.number().optional(),
+    })),
+  },
+  async ({ amountUSD, sourceOrder, sources }) => {
+    let remaining = amountUSD
+    const allocations = []
+
+    for (const sid of sourceOrder) {
+      if (remaining < 0.01) break
+      const s = sources.find(src => src.id === sid)
+      if (!s) continue
+
+      let usedUSD: number
+      let amountOriginal: number
+      const rate = s.exchangeRate ?? 1
+
+      if (s.currency === 'ARS' && s.exchangeRate) {
+        const availableUSD = s.available / rate
+        const maxUSD = availableUSD / (1 + s.feeRate)
+        usedUSD = Math.min(remaining, parseFloat(maxUSD.toFixed(6)))
+        if (usedUSD <= 0) continue
+        amountOriginal = parseFloat((usedUSD * (1 + s.feeRate) * rate).toFixed(2))
+      } else {
+        const maxUSD = s.available / (1 + s.feeRate)
+        usedUSD = Math.min(remaining, parseFloat(maxUSD.toFixed(6)))
+        if (usedUSD <= 0) continue
+        amountOriginal = parseFloat((usedUSD * (1 + s.feeRate)).toFixed(6))
+      }
+
+      const fee = parseFloat((usedUSD * s.feeRate).toFixed(6))
+      const oppCost = s.kind === 'credit_card' ? 0 : parseFloat((usedUSD * s.yieldRate / 12).toFixed(6))
+
+      allocations.push({
+        sourceId: s.id, label: s.label, symbol: s.symbol, currency: s.currency,
+        amountUSD: parseFloat(usedUSD.toFixed(6)), amountOriginal,
+        fee, feeRate: s.feeRate, opportunityCostUSD: oppCost,
+        trueCostUSD: parseFloat((fee + oppCost).toFixed(6)),
+      })
+
+      remaining = parseFloat((remaining - usedUSD).toFixed(6))
+    }
+
+    const result = {
+      allocations,
+      totalUSD: parseFloat(allocations.reduce((s, a) => s + a.amountUSD, 0).toFixed(6)),
+      totalFees: parseFloat(allocations.reduce((s, a) => s + a.fee, 0).toFixed(6)),
+      totalOpportunityCost: parseFloat(allocations.reduce((s, a) => s + a.opportunityCostUSD, 0).toFixed(6)),
+      success: remaining < 0.01,
+    }
+
+    return { content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }] }
+  },
+)
+
 // ── Start server ─────────────────────────────────────────────────────
 
 async function main() {

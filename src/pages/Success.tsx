@@ -27,7 +27,7 @@ export default function Success() {
 
   const { merchant, amount, result, pipelineResult } = state
   const worstCaseFee = getWorstCaseFee(amount)
-  const savings = parseFloat((worstCaseFee - result.totalFees).toFixed(4))
+  const savings = parseFloat((worstCaseFee - result.totalFees).toFixed(2))
   const hasCreditCard = result.sourceUsages.some(u => u.feeRate > 0.01)
 
   return (
@@ -76,7 +76,7 @@ export default function Success() {
                     <p className="font-semibold text-[#F8FAFC]">${usage.amountUSD.toFixed(2)}</p>
                     {usage.currency === 'ARS' && (
                       <p className="text-xs text-[#64748B]">
-                        {usage.amountOriginal.toLocaleString()} ARS
+                        {usage.amountOriginal.toLocaleString('en-US', { maximumFractionDigits: 2 })} ARS
                       </p>
                     )}
                   </div>
@@ -85,7 +85,7 @@ export default function Success() {
             })}
             <div className="flex justify-between items-center border-t border-[#334155] pt-3">
               <span className="text-sm text-[#64748B]">Conversion fees</span>
-              <span className="text-sm text-[#64748B]">${result.totalFees.toFixed(4)}</span>
+              <span className="text-sm text-[#64748B]">${result.totalFees.toFixed(2)}</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="font-bold text-[#F8FAFC]">Total charged</span>

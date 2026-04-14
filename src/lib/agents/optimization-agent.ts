@@ -1,61 +1,39 @@
-// Optimization Agent — Claude Opus with extended thinking.
-// Replaces the deterministic greedy algorithm with AI-driven allocation
-// that considers both fees AND opportunity cost (the Infleta concept).
+// Optimization Agent — Claude Opus with tool_use for precise math.
+// Opus reasons about STRATEGY (which sources and why).
+// Math tools do the precise calculations (fees, currency conversion, true cost).
 
-import { callClaudeStreaming } from '../claude-client'
+import { callClaudeWithTools } from '../claude-client'
 import { optimizePayment } from '../optimizer'
+import { mathTools, createMathToolHandlers } from './math-tools'
 import type { AgentEvent, EnrichedSource, LiveRates, OptimizationAgentResult } from './types'
 
 const SYSTEM_PROMPT = `You are MixPay's AI payment optimization engine.
 
-Your task: allocate a USD payment across multiple payment sources to minimize TRUE COST.
+Your job: decide the STRATEGY for allocating a payment across multiple sources. You do NOT do math — you have tools for that.
 
-## True Cost Formula (1-month payment horizon)
+## Workflow
 
-For each source:
-  fee             = amountUSD × feeRate
-  opportunityCost = amountUSD × (effectiveYieldRate / 12)
-  trueCost        = fee + opportunityCost
+1. Call \`calculate_true_costs\` — it returns an \`optimalOrder\` array
+2. Call \`allocate_payment\` with \`source_order\` set to EXACTLY the \`optimalOrder\` array from step 1. Do NOT change the order.
+3. Copy the tool result into your JSON response and add reasoning.
 
-opportunityCost represents the yield you LOSE by spending this money instead of keeping it invested.
+## CRITICAL RULES
 
-For credit cards (yieldRate = 0): trueCost = fee only. There is no opportunity cost because you are spending borrowed money — your own funds stay invested.
-
-KEY INSIGHT: Sometimes paying a small credit card fee is CHEAPER than spending your invested cash, because the cash would have earned more in yield than the fee costs.
-
-## Rules
-
-1. Calculate trueCost for every source
-2. Allocate starting from the LOWEST trueCost sources
-3. For ARS sources: convert using liveExchangeRate (ARS per 1 USD)
-4. Respect available balances — you cannot spend more than what's available
-5. Fee is deducted from the source balance, not from the payment amount
-6. A source with feeRate=0 but yieldRate=0.05 has trueCost = 0 + (amount × 0.05/12) ≈ 0.42% per month
+- You MUST pass the \`optimalOrder\` array from calculate_true_costs directly as \`source_order\` to allocate_payment. Do NOT reorder, skip, or modify it.
+- Do NOT do any math yourself. All numbers come from the tools.
+- Credit cards often rank BETTER than balance sources because they have 0% opportunity cost (borrowed money).
 
 ## Output
 
-Return ONLY valid JSON (no markdown fences, no extra text):
+After calling the tools, return ONLY valid JSON (no markdown fences):
 {
-  "allocations": [
-    {
-      "sourceId": "string",
-      "label": "string",
-      "symbol": "string",
-      "currency": "string",
-      "amountUSD": number,
-      "amountOriginal": number,
-      "fee": number,
-      "feeRate": number,
-      "opportunityCostUSD": number,
-      "trueCostUSD": number
-    }
-  ],
-  "totalUSD": number,
-  "totalFees": number,
-  "totalOpportunityCost": number,
-  "reasoning": "2-3 sentences explaining your decision and the key tradeoff",
-  "alternativeConsidered": "what the second-best allocation would have been and why you rejected it",
-  "success": true/false
+  "allocations": <copy the allocations array from allocate_payment result>,
+  "totalUSD": <from tool result>,
+  "totalFees": <from tool result>,
+  "totalOpportunityCost": <from tool result>,
+  "reasoning": "2-3 sentences explaining your STRATEGY and the key tradeoff you identified",
+  "alternativeConsidered": "what other strategy you considered and why you rejected it",
+  "success": <from tool result>
 }`
 
 function buildUserPrompt(
@@ -69,22 +47,23 @@ function buildUserPrompt(
       `label: ${s.label}`,
       `currency: ${s.currency}`,
       `available: ${s.available}`,
-      `feeRate: ${s.feeRate}`,
-      `effectiveYieldRate: ${s.effectiveYieldRate}`,
+      `feeRate: ${(s.feeRate * 100).toFixed(1)}%`,
+      `yieldRate: ${(s.effectiveYieldRate * 100).toFixed(1)}% APY`,
+      `kind: ${s.kind}`,
     ]
-    if (s.liveExchangeRate) parts.push(`liveExchangeRate: ${s.liveExchangeRate} ARS/USD`)
-    return `  { ${parts.join(', ')} }`
+    if (s.liveExchangeRate) parts.push(`exchangeRate: ${s.liveExchangeRate} ARS/USD`)
+    return `  ${parts.join(', ')}`
   }).join('\n')
 
-  return `Optimize this payment:
-
-Amount: $${amountUSD.toFixed(2)} USD
-Monthly inflation (ARS): ${(liveRates.monthlyInflation * 100).toFixed(1)}%
+  return `Optimize this $${amountUSD.toFixed(2)} USD payment.
 
 Available sources:
 ${sourceLines}
 
-Allocate the payment to minimize total true cost.`
+ARS exchange rate: ${liveRates.arsExchangeRate} ARS/USD
+Monthly inflation: ${(liveRates.monthlyInflation * 100).toFixed(1)}%
+
+Start by calling calculate_true_costs, then decide your strategy.`
 }
 
 export async function runOptimizationAgent(
@@ -97,51 +76,49 @@ export async function runOptimizationAgent(
   onEvent({
     kind: 'agent_progress',
     agentName: 'OptimizationAgent',
-    message: 'Claude is reasoning through the optimal allocation...',
+    message: 'Opus is analyzing payment sources...',
     timestamp: Date.now(),
   })
 
-  let jsonText = ''
-  let thinkingText = ''
-  let hasContent = false
+  const toolHandlers = createMathToolHandlers(
+    amountUSD,
+    enrichedSources,
+    liveRates.arsExchangeRate,
+  )
 
-  try {
-    for await (const event of callClaudeStreaming(
-      [{ role: 'user', content: buildUserPrompt(amountUSD, enrichedSources, liveRates) }],
-      {
-        model: 'claude-opus-4-6',
-        maxTokens: 16000,
-        systemPrompt: SYSTEM_PROMPT,
-        thinking: { type: 'enabled', budgetTokens: 10000 },
-      },
-    )) {
-      hasContent = true
+  const responseText = await callClaudeWithTools(
+    [{ role: 'user', content: buildUserPrompt(amountUSD, enrichedSources, liveRates) }],
+    mathTools,
+    toolHandlers,
+    {
+      model: 'claude-opus-4-6',
+      maxTokens: 4096,
+      systemPrompt: SYSTEM_PROMPT,
+    },
+    (name, input) => {
+      onEvent({
+        kind: 'agent_tool_call',
+        agentName: 'OptimizationAgent',
+        toolName: name,
+        toolArgs: input,
+        timestamp: Date.now(),
+      })
+    },
+    (name, result) => {
+      onEvent({
+        kind: 'agent_tool_result',
+        agentName: 'OptimizationAgent',
+        toolName: name,
+        toolResult: result,
+        timestamp: Date.now(),
+      })
+    },
+  )
 
-      if (event.type === 'content_block_delta') {
-        if (event.delta?.type === 'thinking_delta' && event.delta.thinking) {
-          thinkingText += event.delta.thinking
-          // Emit thinking snippet every ~80 chars of new content
-          if (thinkingText.length % 80 < event.delta.thinking.length) {
-            onEvent({
-              kind: 'agent_thinking',
-              agentName: 'OptimizationAgent',
-              thinkingSnippet: thinkingText.slice(-120),
-              timestamp: Date.now(),
-            })
-          }
-        } else if (event.delta?.type === 'text_delta' && event.delta.text) {
-          jsonText += event.delta.text
-        }
-      }
-    }
-  } catch {
-    // Stream failed — fall through to fallback
-  }
-
-  // Attempt to parse the JSON result
-  if (hasContent && jsonText.length > 10) {
+  // Parse Opus's final JSON
+  if (responseText.length > 10) {
     try {
-      const cleaned = jsonText.replace(/^```json\n?/, '').replace(/\n?```$/, '').trim()
+      const cleaned = responseText.replace(/^```json\n?/, '').replace(/\n?```$/, '').trim()
       const parsed = JSON.parse(cleaned) as OptimizationAgentResult
       onEvent({ kind: 'agent_done', agentName: 'OptimizationAgent', timestamp: Date.now() })
       return parsed
@@ -150,11 +127,11 @@ export async function runOptimizationAgent(
     }
   }
 
-  // Fallback: use the deterministic optimizer and wrap the result
+  // Fallback: use the deterministic optimizer
   onEvent({
     kind: 'agent_progress',
     agentName: 'OptimizationAgent',
-    message: 'Using deterministic optimization as fallback...',
+    message: 'Using deterministic fallback...',
     timestamp: Date.now(),
   })
 

@@ -36,10 +36,10 @@ export default function BalanceBar({
         <span className="text-[#94A3B8] font-medium">{label}</span>
         <span className="text-[#64748B]">
           {symbol}
-          {used.toLocaleString()}{' '}
+          {used.toLocaleString('en-US', { maximumFractionDigits: 2 })}{' '}
           <span className="text-[#334155]">
             / {symbol}
-            {total.toLocaleString()}
+            {total.toLocaleString('en-US', { maximumFractionDigits: 2 })}
           </span>
         </span>
       </div>
