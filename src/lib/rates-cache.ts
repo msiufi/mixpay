@@ -28,19 +28,19 @@ async function fetchJson(proxyUrl: string, directUrl: string): Promise<unknown> 
 
 async function fetchLiveRates(): Promise<LiveRates> {
   // Fetch all 3 data sources in parallel
-  const [blueData, oficialData, configData, cerData] = await Promise.all([
-    fetchJson('/api/rates?type=blue', '/api/rates?type=blue'),
+  const [oficialData, mepData, configData, cerData] = await Promise.all([
     fetchJson('/api/rates?type=oficial', '/api/rates?type=oficial'),
+    fetchJson('/api/rates?type=mep', '/api/rates?type=mep'),
     fetchJson('/api/yields?source=config', '/api/yields?source=config'),
     fetchJson('/api/yields?source=cer-ultimo', '/api/yields?source=cer-ultimo'),
   ])
 
-  // Parse dollar rates — take the best (highest) sell rate
-  const blue = blueData as { compra?: number; venta?: number } | null
+  // Parse dollar rates — take the best (highest) sell rate between oficial and MEP
   const oficial = oficialData as { compra?: number; venta?: number } | null
-  const blueRate = blue?.venta ?? 0
+  const mep = mepData as { compra?: number; venta?: number } | null
   const oficialRate = oficial?.venta ?? 0
-  const arsExchangeRate = Math.max(blueRate, oficialRate) || 1400
+  const mepRate = mep?.venta ?? 0
+  const arsExchangeRate = Math.max(oficialRate, mepRate) || 1400
 
   // Parse FCI yields from config
   let fciTopFunds: { name: string; tna: number }[] = []
