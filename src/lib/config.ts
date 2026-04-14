@@ -2,7 +2,7 @@
 // All tunable values in one place.
 
 /** Commission rate as a fraction of gross savings (0.10 = 10%). */
-export const COMMISSION_RATE = 0.10
+export const COMMISSION_RATE = 0.25
 
 /** Claude model for the Optimization Agent. 'claude-opus-4-6' for demo, 'claude-sonnet-4-6' for production. */
 export const OPTIMIZATION_MODEL = 'claude-opus-4-6'
