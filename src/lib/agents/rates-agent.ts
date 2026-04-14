@@ -171,6 +171,7 @@ export async function runRatesAgent(
     arsExchangeRate: arsRate,
     fciTopFunds: fciTopFunds.length > 0 ? fciTopFunds : [{ name: 'FCI Money Market (est.)', tna: 40 }],
     monthlyInflation,
+    usAnnualInflation: 0.03,
     marketData: (parsed.marketData ?? {}) as Record<string, number>,
   }
 

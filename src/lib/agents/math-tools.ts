@@ -2,7 +2,6 @@
 // Opus calls these via tool_use for precise calculations — no LLM math.
 
 import type { ClaudeTool } from '../claude-client'
-import { ARG_MONTHLY_INFLATION, US_ANNUAL_INFLATION } from '../config'
 import type { EnrichedSource } from './types'
 
 // ── Tool definitions (sent to Claude API) ────────────────────────────
@@ -70,11 +69,11 @@ interface SourceCost {
 }
 
 /** Get the annual inflation rate for a given currency. */
-function inflationForCurrency(currency: string): number {
-  return currency === 'ARS' ? ARG_MONTHLY_INFLATION * 12 : US_ANNUAL_INFLATION
+function inflationForCurrency(currency: string, argMonthlyInflation: number, usAnnualInflation: number): number {
+  return currency === 'ARS' ? argMonthlyInflation * 12 : usAnnualInflation
 }
 
-function computeSourceCosts(sources: EnrichedSource[], arsRate: number): SourceCost[] {
+function computeSourceCosts(sources: EnrichedSource[], arsRate: number, argMonthlyInflation: number, usAnnualInflation: number): SourceCost[] {
   return sources.map(s => {
     const availableUSD = s.currency === 'ARS'
       ? s.available / arsRate
@@ -86,7 +85,7 @@ function computeSourceCosts(sources: EnrichedSource[], arsRate: number): SourceC
     // ARS at 29% with 35% inflation → real yield = -6% → negative opportunity cost (benefit to spend!)
     // USD at 4.2% with 3% inflation → real yield = +1.2% → small cost to spend
     // Credit cards → 0 (borrowed money, no opportunity cost)
-    const realYield = s.effectiveYieldRate - inflationForCurrency(s.currency)
+    const realYield = s.effectiveYieldRate - inflationForCurrency(s.currency, argMonthlyInflation, usAnnualInflation)
     const opportunityCostPerDollar = s.kind === 'credit_card'
       ? 0
       : realYield / 12  // can be negative = benefit to spend
@@ -135,6 +134,8 @@ function computeAllocation(
   amountUSD: number,
   sources: EnrichedSource[],
   arsRate: number,
+  argMonthlyInflation: number,
+  usAnnualInflation: number,
 ): AllocationResult {
   let remaining = amountUSD
   const allocations: AllocationItem[] = []
@@ -161,7 +162,7 @@ function computeAllocation(
     }
 
     const fee = round(usedUSD * s.feeRate)
-    const realYield = s.effectiveYieldRate - inflationForCurrency(s.currency)
+    const realYield = s.effectiveYieldRate - inflationForCurrency(s.currency, argMonthlyInflation, usAnnualInflation)
     const oppCost = s.kind === 'credit_card'
       ? 0
       : round(usedUSD * realYield / 12)
@@ -203,10 +204,12 @@ export function createMathToolHandlers(
   amountUSD: number,
   sources: EnrichedSource[],
   arsRate: number,
+  argMonthlyInflation: number,
+  usAnnualInflation: number,
 ): Record<string, (input: Record<string, unknown>) => Promise<unknown>> {
   return {
     calculate_true_costs: async () => {
-      const costs = computeSourceCosts(sources, arsRate)
+      const costs = computeSourceCosts(sources, arsRate, argMonthlyInflation, usAnnualInflation)
       return {
         amount: amountUSD,
         sources: costs,
@@ -217,14 +220,14 @@ export function createMathToolHandlers(
 
     allocate_payment: async (input) => {
       const order = (input.source_order as string[]) ?? []
-      return computeAllocation(order, amountUSD, sources, arsRate)
+      return computeAllocation(order, amountUSD, sources, arsRate, argMonthlyInflation, usAnnualInflation)
     },
 
     compare_strategies: async (input) => {
       const a = (input.strategy_a as string[]) ?? []
       const b = (input.strategy_b as string[]) ?? []
-      const resultA = computeAllocation(a, amountUSD, sources, arsRate)
-      const resultB = computeAllocation(b, amountUSD, sources, arsRate)
+      const resultA = computeAllocation(a, amountUSD, sources, arsRate, argMonthlyInflation, usAnnualInflation)
+      const resultB = computeAllocation(b, amountUSD, sources, arsRate, argMonthlyInflation, usAnnualInflation)
       return {
         strategy_a: { order: a, totalTrueCost: resultA.totalTrueCost, totalFees: resultA.totalFees, success: resultA.success },
         strategy_b: { order: b, totalTrueCost: resultB.totalTrueCost, totalFees: resultB.totalFees, success: resultB.success },

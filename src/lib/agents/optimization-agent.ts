@@ -39,7 +39,7 @@ export async function runOptimizationAgent(
     timestamp: Date.now(),
   })
 
-  const handlers = createMathToolHandlers(amountUSD, enrichedSources, liveRates.arsExchangeRate)
+  const handlers = createMathToolHandlers(amountUSD, enrichedSources, liveRates.arsExchangeRate, liveRates.monthlyInflation, liveRates.usAnnualInflation)
 
   const costsResult = await handlers.calculate_true_costs({}) as {
     optimalOrder: string[]

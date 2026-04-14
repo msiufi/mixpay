@@ -3,6 +3,7 @@
 
 import type { PaymentSource } from '../types'
 import type { EnrichedSource, LiveRates } from './agents/types'
+import { ARG_MONTHLY_INFLATION, US_ANNUAL_INFLATION } from './config'
 
 const CACHE_TTL = 2 * 60 * 1000 // 2 minutes
 
@@ -60,14 +61,18 @@ async function fetchLiveRates(): Promise<LiveRates> {
     fciTopFunds = [{ name: 'FCI Money Market (est.)', tna: 40 }]
   }
 
-  // Parse CER inflation
+  // Parse CER inflation — CER is an index, not a direct rate.
+  // We store the index; monthly inflation estimate comes from config as default
+  // but can be overridden by live data sources in the future.
   const cer = cerData as { cer?: number; valor?: number } | null
-  const monthlyInflation = 0.029 // approximate; CER is an index, not a direct monthly rate
+  const monthlyInflation = ARG_MONTHLY_INFLATION // from config, updated manually as new data comes in
+  const usAnnualInflation = US_ANNUAL_INFLATION  // from config
 
   return {
     arsExchangeRate,
     fciTopFunds,
     monthlyInflation,
+    usAnnualInflation,
     marketData: cer ? { cer: Number(cer.cer ?? cer.valor ?? 0) } : {},
   }
 }
@@ -106,7 +111,8 @@ export async function getRates(): Promise<LiveRates> {
     return {
       arsExchangeRate: 1400,
       fciTopFunds: [{ name: 'FCI Money Market (est.)', tna: 40 }],
-      monthlyInflation: 0.029,
+      monthlyInflation: ARG_MONTHLY_INFLATION,
+      usAnnualInflation: US_ANNUAL_INFLATION,
       marketData: {},
     }
   }

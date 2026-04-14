@@ -49,6 +49,7 @@ export function buildFallbackPipelineResult(
     arsExchangeRate: 1400,
     fciTopFunds: [{ name: 'FCI Money Market (fallback)', tna: 40 }],
     monthlyInflation: 0.029,
+    usAnnualInflation: 0.03,
     marketData: {},
   }
 

@@ -30,7 +30,8 @@ export interface AgentEvent {
 export interface LiveRates {
   arsExchangeRate: number                          // ARS per 1 USD (e.g. 1385)
   fciTopFunds: { name: string; tna: number }[]     // top FCI funds with annual nominal rate
-  monthlyInflation: number                         // e.g. 0.029
+  monthlyInflation: number                         // e.g. 0.029 (Argentine)
+  usAnnualInflation: number                        // e.g. 0.03 (US)
   marketData: Record<string, number>               // bitcoin, sp500, gold, etc.
 }
 
