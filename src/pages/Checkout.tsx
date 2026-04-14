@@ -22,7 +22,7 @@ export default function Checkout() {
   const [inputFocused, setInputFocused] = useState(false)
 
   const amount = rawAmount / 100
-  const isValid = amount >= 1 && amount <= 500
+  const isValid = amount >= 1
 
   const cardSources = sources.filter(s => s.kind === 'credit_card')
   const closingSoonCards = cardSources.filter(s => {
@@ -99,9 +99,9 @@ export default function Checkout() {
               style={{ fontFamily: 'inherit' }}
             />
           </div>
-          <p className="text-sm text-[#64748B] mt-2">United States Dollar · max $500</p>
+          <p className="text-sm text-[#64748B] mt-2">United States Dollar</p>
           {!isValid && rawAmount > 0 && (
-            <p className="text-xs text-rose-400 mt-1">Enter an amount between $1 and $500</p>
+            <p className="text-xs text-rose-400 mt-1">Enter an amount of at least $1</p>
           )}
         </div>
 

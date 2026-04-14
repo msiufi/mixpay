@@ -130,6 +130,12 @@ export default function Dashboard() {
     return sum + s.available
   }, 0)
 
+  // Total savings across all transactions (vs 3.5% Visa worst case)
+  const totalSavings = transactions.reduce((sum, tx) => {
+    const worstFee = tx.amount * 0.035
+    return sum + Math.max(0, worstFee - tx.result.totalFees)
+  }, 0)
+
   return (
     <div className="min-h-screen bg-[#0F172A]">
       {/* Header */}
@@ -183,8 +189,15 @@ export default function Dashboard() {
               +
             </button>
           </div>
-          <p className="text-4xl font-bold text-[#F59E0B]">${totalUSD.toFixed(2)}</p>
-          <p className="text-[#64748B] text-sm mt-1">USD equivalent · own funds</p>
+          <p className="text-4xl font-bold text-[#F59E0B]">${fmt(totalUSD)}</p>
+          <div className="flex items-center justify-between mt-1">
+            <p className="text-[#64748B] text-sm">USD equivalent · own funds</p>
+            {totalSavings > 0.01 && (
+              <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full font-medium">
+                Saved ${fmt(totalSavings)}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Live Rates Strip */}
