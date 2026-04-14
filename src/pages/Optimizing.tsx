@@ -8,6 +8,7 @@ import { useSession } from '../context/SessionContext'
 import { useOptimizationStream } from '../hooks/useOptimizationStream'
 import BalanceBar from '../components/BalanceBar'
 import { COMMISSION_RATE } from '../lib/config'
+import { fmt } from '../lib/format'
 
 interface LocationState {
   merchant: string
@@ -247,7 +248,7 @@ export default function Optimizing() {
             </div>
             <div className="text-right">
               <p className="text-xs text-[#64748B]">Amount</p>
-              <p className="text-2xl font-bold text-[#F59E0B]">${amount.toFixed(2)}</p>
+              <p className="text-2xl font-bold text-[#F59E0B]">${fmt(amount)}</p>
             </div>
           </div>
 
@@ -307,7 +308,7 @@ export default function Optimizing() {
                         </div>
                         <div className="text-right">
                           <p className={`text-sm font-bold ${colors.text}`}>
-                            ${usage.amountUSD.toFixed(2)}
+                            ${fmt(usage.amountUSD)}
                           </p>
                           {usage.currency === 'ARS' && (
                             <p className="text-xs opacity-70" style={{ color: 'inherit' }}>
@@ -333,7 +334,7 @@ export default function Optimizing() {
                   <div className="flex justify-between text-sm">
                     <span className="text-[#94A3B8]">Conversion fees</span>
                     <span className="font-medium text-[#F8FAFC]">
-                      ${result.totalFees.toFixed(2)}
+                      ${fmt(result.totalFees)}
                     </span>
                   </div>
                   {(() => {
@@ -343,11 +344,11 @@ export default function Optimizing() {
                       <>
                         <div className="flex justify-between text-sm">
                           <span className="text-[#94A3B8]">MixPay fee ({(COMMISSION_RATE * 100).toFixed(0)}% of savings)</span>
-                          <span className="font-medium text-[#F8FAFC]">${comm.toFixed(2)}</span>
+                          <span className="font-medium text-[#F8FAFC]">${fmt(comm)}</span>
                         </div>
                         <div className="flex justify-between text-sm border-t border-[#334155] pt-2">
                           <span className="font-semibold text-[#F8FAFC]">Total</span>
-                          <span className="font-bold text-[#F8FAFC]">${(amount + result.totalFees + comm).toFixed(2)}</span>
+                          <span className="font-bold text-[#F8FAFC]">${fmt(amount + result.totalFees + comm)}</span>
                         </div>
                       </>
                     )

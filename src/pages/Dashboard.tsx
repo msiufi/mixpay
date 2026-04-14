@@ -349,7 +349,7 @@ export default function Dashboard() {
                           >
                             {usage.currency === 'ARS'
                               ? `ARS ${usage.amountOriginal.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                              : `${usage.label} $${usage.amountUSD.toFixed(2)}`}
+                              : `${usage.label} $${fmt(usage.amountUSD)}`}
                           </span>
                         )
                       })}
