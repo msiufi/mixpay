@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { useSession } from '../context/SessionContext'
 import { mockCard } from '../lib/mock-data'
+import { getCycleStatus } from '../lib/billing-cycle'
 
 const PRESET_MERCHANTS = [
   { name: 'Nike Store',    icon: '👟' },
@@ -21,6 +22,13 @@ export default function Checkout() {
 
   const amount = parseFloat(amountStr) || 0
   const isValid = amount >= 1 && amount <= 500
+
+  const cardSources = sources.filter(s => s.kind === 'credit_card')
+  const closingSoonCards = cardSources.filter(s => {
+    if (!s.closingDay || !s.dueDay) return false
+    const cycle = getCycleStatus(s.closingDay, s.dueDay, new Date())
+    return cycle.status === 'closing-soon'
+  })
 
   function handlePay() {
     if (!isValid) return
@@ -108,6 +116,16 @@ export default function Checkout() {
             MixPay AI will analyze your {sources.length} available payment sources and automatically choose the lowest-fee combination.
           </p>
         </div>
+
+        {/* Billing cycle warning */}
+        {closingSoonCards.length > 0 && (
+          <div className="bg-[#FBBF24]/10 rounded-xl px-4 py-3 border border-[#FBBF24]/20 flex items-start gap-3">
+            <span className="text-[#FBBF24] text-sm mt-0.5">⚠</span>
+            <p className="text-xs text-[#FBBF24] leading-relaxed">
+              {closingSoonCards.map(c => c.label).join(', ')} cierra pronto — el optimizador lo tendrá en cuenta.
+            </p>
+          </div>
+        )}
 
         {/* Pay Button */}
         <button
