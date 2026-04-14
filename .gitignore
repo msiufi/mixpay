@@ -24,3 +24,5 @@ dist-ssr
 *.sw?
 
 .envbuild/
+.env
+build/

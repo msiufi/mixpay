@@ -29,11 +29,12 @@ async function fetchJson(proxyUrl: string, directUrl: string): Promise<unknown> 
 
 async function fetchLiveRates(): Promise<LiveRates> {
   // Fetch all 3 data sources in parallel
-  const [oficialData, mepData, configData, cerData] = await Promise.all([
+  const [oficialData, mepData, configData, cerData, ipcData] = await Promise.all([
     fetchJson('/api/rates?type=oficial', '/api/rates?type=oficial'),
     fetchJson('/api/rates?type=mep', '/api/rates?type=mep'),
     fetchJson('/api/yields?source=config', '/api/yields?source=config'),
     fetchJson('/api/yields?source=cer-ultimo', '/api/yields?source=cer-ultimo'),
+    fetchJson('/api/ipc', 'https://apis.datos.gob.ar/series/api/series/?ids=103.1_I2N_2016_M_15&last=2&format=json'),
   ])
 
   // Parse dollar rates — take the best (highest) sell rate between oficial and MEP
@@ -61,12 +62,21 @@ async function fetchLiveRates(): Promise<LiveRates> {
     fciTopFunds = [{ name: 'FCI Money Market (est.)', tna: 40 }]
   }
 
-  // Parse CER inflation — CER is an index, not a direct rate.
-  // We store the index; monthly inflation estimate comes from config as default
-  // but can be overridden by live data sources in the future.
+  // Parse CER index (still useful for display)
   const cer = cerData as { cer?: number; valor?: number } | null
-  const monthlyInflation = ARG_MONTHLY_INFLATION // from config, updated manually as new data comes in
-  const usAnnualInflation = US_ANNUAL_INFLATION  // from config
+
+  // Compute monthly inflation from INDEC IPC (last 2 data points)
+  let monthlyInflation = ARG_MONTHLY_INFLATION // fallback from config
+  const ipc = ipcData as { data?: [string, number][] } | null
+  if (ipc?.data && ipc.data.length >= 2) {
+    const prev = ipc.data[0][1]
+    const curr = ipc.data[1][1]
+    if (prev > 0 && curr > 0) {
+      monthlyInflation = (curr - prev) / prev // e.g. (10991 - 10683) / 10683 = 0.0288
+    }
+  }
+
+  const usAnnualInflation = US_ANNUAL_INFLATION // from config (no live source yet)
 
   return {
     arsExchangeRate,
