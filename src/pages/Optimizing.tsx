@@ -1,10 +1,10 @@
 // src/pages/Optimizing.tsx
-import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
-import type { OptimizationResult, PaymentSource } from '../types'
-import { optimizePayment } from '../lib/optimizer'
+import type { PaymentSource } from '../types'
+import type { StreamPhase } from '../lib/agents/types'
 import { getSourceColors } from '../lib/source-colors'
 import { useSession } from '../context/SessionContext'
+import { useOptimizationStream } from '../hooks/useOptimizationStream'
 import BalanceBar from '../components/BalanceBar'
 
 interface LocationState {
@@ -13,62 +13,90 @@ interface LocationState {
   sources: PaymentSource[]
 }
 
+/** Map stream phases to step numbers for the existing CSS transitions. */
+const PHASE_STEP: Record<StreamPhase, number> = {
+  idle: 0,
+  fetching_rates: 1,
+  optimizing: 2,
+  assessing_risk: 3,
+  generating_insight: 4,
+  complete: 5,
+  error: 0,
+}
+
 export default function Optimizing() {
   const location = useLocation()
   const navigate = useNavigate()
-  const { applyPayment } = useSession()
+  const { applyPayment, transactions } = useSession()
   const state = location.state as LocationState | null
 
-  const [step, setStep] = useState(0)
-  const [result, setResult] = useState<OptimizationResult | null>(null)
+  // Always call hook (React rules) — pass safe defaults when state is null
+  const streamState = useOptimizationStream(
+    state?.merchant ?? '',
+    state?.amount ?? 0,
+    state?.sources ?? [],
+    transactions,
+  )
 
-  useEffect(() => {
-    if (!state) {
-      navigate('/')
-      return
-    }
-
-    const timers = [
-      setTimeout(() => setStep(1), 700),
-      setTimeout(() => setStep(2), 1400),
-      setTimeout(() => {
-        const r = optimizePayment(state.amount, state.sources)
-        setResult(r)
-        setStep(3)
-      }, 2400),
-      setTimeout(() => setStep(4), 3100),
-      setTimeout(() => setStep(5), 3700),
-    ]
-
-    return () => timers.forEach(clearTimeout)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  if (!state) return null
+  if (!state) {
+    navigate('/')
+    return null
+  }
 
   const { merchant, amount, sources } = state
+  const step = PHASE_STEP[streamState.phase]
+  const result = streamState.result?.optimizationResult ?? null
 
   function handleConfirm() {
     if (!result) return
     applyPayment(result, merchant, amount)
-    navigate('/success', { state: { merchant, amount, result } })
+    navigate('/success', {
+      state: {
+        merchant,
+        amount,
+        result,
+        pipelineResult: streamState.result,
+      },
+    })
   }
 
   return (
     <div className="min-h-screen bg-[#0F172A] flex items-center justify-center p-6">
       <div className="w-full max-w-sm">
         {/* Status Header */}
-        <div className="text-center mb-6 h-8 flex items-center justify-center">
+        <div className="text-center mb-6 min-h-[2rem] flex flex-col items-center justify-center gap-1">
           {step === 0 ? (
             <div className="flex items-center gap-2 text-[#64748B]">
               <div className="w-4 h-4 border-2 border-[#334155] border-t-[#F59E0B] rounded-full animate-spin" />
               <span className="text-sm">AI analyzing your {sources.length} payment sources...</span>
             </div>
+          ) : step < 5 ? (
+            <>
+              <span className="text-[#F59E0B] font-semibold text-sm tracking-widest uppercase">
+                {streamState.phaseLabel}
+              </span>
+              {/* Tool call badge */}
+              {streamState.toolCallName && (
+                <span className="text-xs bg-[#1E293B] text-[#64748B] px-2 py-0.5 rounded-full">
+                  calling {streamState.toolCallName}()
+                </span>
+              )}
+            </>
           ) : (
             <span className="text-[#F59E0B] font-semibold text-sm tracking-widest uppercase">
               Payment Optimization
             </span>
           )}
         </div>
+
+        {/* Thinking snippet */}
+        {streamState.thinkingSnippet && step >= 2 && step < 5 && (
+          <div className="mb-4 bg-[#1E293B] border border-[#334155] rounded-xl px-4 py-2">
+            <p className="text-xs text-[#64748B] italic leading-relaxed line-clamp-2">
+              {streamState.thinkingSnippet}
+            </p>
+          </div>
+        )}
 
         {/* Main Panel */}
         <div className="bg-[#272F42] border border-[#334155] rounded-2xl overflow-hidden shadow-2xl">
@@ -97,9 +125,7 @@ export default function Optimizing() {
               <div className="space-y-3">
                 {sources.map((source, i) => {
                   const colors = getSourceColors(source.id)
-                  const displayTotal = source.currency === 'ARS'
-                    ? source.available
-                    : source.available
+                  const displayTotal = source.available
                   const displayUsed = step >= 2 ? displayTotal : 0
                   return (
                     <BalanceBar
@@ -179,6 +205,13 @@ export default function Optimizing() {
               </div>
             )}
           </div>
+
+          {/* Error state */}
+          {streamState.phase === 'error' && (
+            <div className="px-6 pb-4">
+              <p className="text-sm text-red-400">{streamState.error}</p>
+            </div>
+          )}
 
           {/* Confirm Button */}
           <div

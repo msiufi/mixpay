@@ -2,13 +2,16 @@
 import { useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import type { OptimizationResult } from '../types'
+import type { AgentPipelineResult } from '../lib/agents/types'
 import { getWorstCaseFee } from '../lib/optimizer'
 import { getSourceColors } from '../lib/source-colors'
+import InfletaInsightPanel from '../components/InfletaInsightPanel'
 
 interface LocationState {
   merchant: string
   amount: number
   result: OptimizationResult
+  pipelineResult?: AgentPipelineResult
 }
 
 export default function Success() {
@@ -22,7 +25,7 @@ export default function Success() {
 
   if (!state) return null
 
-  const { merchant, amount, result } = state
+  const { merchant, amount, result, pipelineResult } = state
   const worstCaseFee = getWorstCaseFee(amount)
   const savings = parseFloat((worstCaseFee - result.totalFees).toFixed(4))
   const hasCreditCard = result.sourceUsages.some(u => u.feeRate > 0.01)
@@ -99,19 +102,27 @@ export default function Success() {
             </p>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between text-[#94A3B8]">
-                <span>💳 Traditional Visa (3.5% fee)</span>
+                <span>Traditional Visa (3.5% fee)</span>
                 <span>${(amount + worstCaseFee).toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-[#94A3B8]">
-                <span>✨ With MixPay</span>
+                <span>With MixPay</span>
                 <span>${(amount + result.totalFees).toFixed(2)}</span>
               </div>
               <div className="flex justify-between font-bold text-emerald-400 border-t border-emerald-500/20 pt-2">
                 <span>You saved</span>
-                <span>${savings.toFixed(2)} 🎉</span>
+                <span>${savings.toFixed(2)}</span>
               </div>
             </div>
           </div>
+        )}
+
+        {/* Infleta-Style Insight Panel */}
+        {pipelineResult && (
+          <InfletaInsightPanel
+            insights={pipelineResult.explanation.insightLines}
+            riskAssessment={pipelineResult.riskAssessment}
+          />
         )}
 
         {/* Info Cards */}
