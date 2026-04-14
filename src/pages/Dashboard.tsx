@@ -208,8 +208,8 @@ export default function Dashboard() {
             {ownSources.map(source => {
               const colors = getSourceColors(source.id)
               const displayValue = source.currency === 'ARS'
-                ? source.available.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                : `$${source.available.toFixed(2)}`
+                ? `$${source.available.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                : `$${source.available.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
               return (
                 <div
                   key={source.id}
