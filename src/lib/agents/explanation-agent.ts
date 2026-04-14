@@ -18,11 +18,15 @@ const SYSTEM_PROMPT = `You are MixPay's financial advisor. Generate EXACTLY 3 in
 ## RULES YOU MUST ALWAYS FOLLOW
 
 1. NEVER invent numbers. Only use the exact numbers provided in the data below.
-2. ALWAYS compare yields against inflation. Argentina's monthly inflation is ~${(ARG_MONTHLY_INFLATION * 100).toFixed(1)}% (~${(ARG_MONTHLY_INFLATION * 12 * 100).toFixed(0)}% annualized). A yield is only "real" if it beats inflation.
+2. Compare yields against the CORRECT inflation for each currency:
+   - ARS yields → compare against Argentine inflation (~${(ARG_MONTHLY_INFLATION * 100).toFixed(1)}%/mo, ~${(ARG_MONTHLY_INFLATION * 12 * 100).toFixed(0)}% annualized)
+   - USD yields → compare against US inflation (~3% annualized). USD is a hard currency, do NOT compare it to Argentine inflation.
+   - USDC yields → compare against US inflation (~3% annualized). USDC is pegged to USD.
 3. ALWAYS mention specific FCI/investment product names and their TNA from the data provided.
 4. Credit card limits are NOT investable money. Never suggest "investing" credit card available balance.
 5. Keep each insight to 1-2 sentences max.
 6. deltaUSD must always be a number (not a string).
+7. NEVER compare USD or USDC to Argentine inflation — they are different currencies with different risk profiles.
 
 ## INSIGHT STRUCTURE (exactly 3, in this order)
 
@@ -72,11 +76,14 @@ function buildPrompt(
     `- ${a.label}: $${a.amountUSD.toFixed(2)} (fee: $${a.fee.toFixed(2)}, opportunity cost: $${a.opportunityCostUSD.toFixed(2)})`
   ).join('\n')
 
+  const US_INFLATION = 0.03
   const sourceLines = enrichedSources.map(s => {
     const used = optResult.allocations.find(a => a.sourceId === s.id)
     const remaining = used ? s.available - used.amountOriginal : s.available
-    const realYield = s.effectiveYieldRate - annualInflation
-    return `- ${s.label} (${s.kind}): yield ${(s.effectiveYieldRate * 100).toFixed(1)}% TNA, real yield vs inflation: ${(realYield * 100).toFixed(1)}%, remaining: ${remaining.toFixed(2)} ${s.currency}`
+    const inflation = s.currency === 'ARS' ? annualInflation : US_INFLATION
+    const inflationLabel = s.currency === 'ARS' ? 'Argentine' : 'US'
+    const realYield = s.effectiveYieldRate - inflation
+    return `- ${s.label} (${s.kind}, ${s.currency}): yield ${(s.effectiveYieldRate * 100).toFixed(1)}%, real yield vs ${inflationLabel} inflation (${(inflation * 100).toFixed(0)}%): ${realYield > 0 ? '+' : ''}${(realYield * 100).toFixed(1)}%, remaining: ${remaining.toFixed(2)} ${s.currency}`
   }).join('\n')
 
   const fciLines = liveRates.fciTopFunds.map(f => {
