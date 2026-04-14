@@ -7,6 +7,7 @@ import { getSourceColors } from '../lib/source-colors'
 import { mockCard } from '../lib/mock-data'
 import { getCachedRates } from '../lib/rates-cache'
 import AIExplanationModal from '../components/AIExplanationModal'
+import { fmt } from '../lib/format'
 import type { Transaction } from '../types'
 import type { LiveRates } from '../lib/agents/types'
 
@@ -164,7 +165,7 @@ export default function Dashboard() {
               +
             </button>
           </div>
-          <p className="text-4xl font-bold text-[#F59E0B]">${totalUSD.toFixed(2)}</p>
+          <p className="text-4xl font-bold text-[#F59E0B]">${fmt(totalUSD)}</p>
           <p className="text-[#64748B] text-sm mt-1">USD equivalent · own funds</p>
         </div>
 
@@ -316,7 +317,7 @@ export default function Dashboard() {
                           >
                             {usage.currency === 'ARS'
                               ? `ARS ${usage.amountOriginal.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                              : `${usage.label} $${usage.amountUSD.toFixed(2)}`}
+                              : `${usage.label} $${fmt(usage.amountUSD)}`}
                           </span>
                         )
                       })}

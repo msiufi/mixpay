@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from 'react-router'
 import type { OptimizationResult } from '../types'
 import type { AgentPipelineResult } from '../lib/agents/types'
 import { getWorstCaseFee } from '../lib/optimizer'
+import { fmt } from '../lib/format'
 import { COMMISSION_RATE } from '../lib/config'
 import { getSourceColors } from '../lib/source-colors'
 import SmartInsightPanel from '../components/SmartInsightPanel'
@@ -57,7 +58,7 @@ export default function Success() {
             Payment Approved
           </h1>
           <p className="text-[#64748B] mt-1 text-sm">
-            {merchant} · ${amount.toFixed(2)} USD
+            {merchant} · ${fmt(amount)} USD
           </p>
         </div>
 
@@ -76,7 +77,7 @@ export default function Success() {
                     <span className="text-sm font-medium text-[#94A3B8]">{usage.label}</span>
                   </div>
                   <div className="text-right">
-                    <p className="font-semibold text-[#F8FAFC]">${usage.amountUSD.toFixed(2)}</p>
+                    <p className="font-semibold text-[#F8FAFC]">${fmt(usage.amountUSD)}</p>
                     {usage.currency === 'ARS' && (
                       <p className="text-xs text-[#64748B]">
                         {usage.amountOriginal.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ARS
@@ -88,15 +89,15 @@ export default function Success() {
             })}
             <div className="flex justify-between items-center border-t border-[#334155] pt-3">
               <span className="text-sm text-[#64748B]">Conversion fees</span>
-              <span className="text-sm text-[#64748B]">${result.totalFees.toFixed(2)}</span>
+              <span className="text-sm text-[#64748B]">${fmt(result.totalFees)}</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-sm text-[#64748B]">MixPay fee ({(COMMISSION_RATE * 100).toFixed(0)}% of savings)</span>
-              <span className="text-sm text-[#64748B]">${commission.toFixed(2)}</span>
+              <span className="text-sm text-[#64748B]">${fmt(commission)}</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="font-bold text-[#F8FAFC]">Total charged</span>
-              <span className="font-bold text-[#F59E0B] text-lg">${(amount + result.totalFees + commission).toFixed(2)}</span>
+              <span className="font-bold text-[#F59E0B] text-lg">${fmt(amount + result.totalFees + commission)}</span>
             </div>
           </div>
         </div>
@@ -110,15 +111,15 @@ export default function Success() {
             <div className="space-y-2 text-sm">
               <div className="flex justify-between text-[#94A3B8]">
                 <span>Traditional Visa (3.5% fee)</span>
-                <span>${(amount + worstCaseFee).toFixed(2)}</span>
+                <span>${fmt(amount + worstCaseFee)}</span>
               </div>
               <div className="flex justify-between text-[#94A3B8]">
                 <span>With MixPay (incl. fee)</span>
-                <span>${(amount + result.totalFees + commission).toFixed(2)}</span>
+                <span>${fmt(amount + result.totalFees + commission)}</span>
               </div>
               <div className="flex justify-between font-bold text-emerald-400 border-t border-emerald-500/20 pt-2">
                 <span>You saved</span>
-                <span>${savings.toFixed(2)}</span>
+                <span>${fmt(savings)}</span>
               </div>
             </div>
           </div>
@@ -131,7 +132,7 @@ export default function Success() {
         >
           <div className="text-left">
             <p className="text-sm font-medium text-[#F8FAFC]">
-              Remove the ${commission.toFixed(2)} commission
+              Remove the ${fmt(commission)} commission
             </p>
             <p className="text-xs text-[#64748B]">
               Upgrade to Pro — 0% commission on all payments
