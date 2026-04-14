@@ -28,9 +28,9 @@ const tools: ClaudeTool[] = [
 
 // ── Tool handlers (browser-safe, with fallbacks) ─────────────────────
 
-async function fetchJson(directUrl: string, proxyUrl: string): Promise<unknown> {
-  // Try direct API first, then Vercel proxy, then null
-  for (const url of [directUrl, proxyUrl]) {
+async function fetchJson(proxyUrl: string, directUrl: string): Promise<unknown> {
+  // Try local/Vercel proxy first (avoids CORS), then direct API, then null
+  for (const url of [proxyUrl, directUrl]) {
     try {
       const res = await fetch(url, { signal: AbortSignal.timeout(5000) })
       if (res.ok) return await res.json()
@@ -42,8 +42,8 @@ async function fetchJson(directUrl: string, proxyUrl: string): Promise<unknown> 
 const toolHandlers: Record<string, (input: Record<string, unknown>) => Promise<unknown>> = {
   get_ars_exchange_rate: async () => {
     const data = await fetchJson(
-      'https://dolarapi.com/v1/dolares/blue',
       '/api/rates?type=blue',
+      'https://dolarapi.com/v1/dolares/blue',
     ) as { compra?: number; venta?: number } | null
 
     if (data?.venta) {
@@ -54,26 +54,32 @@ const toolHandlers: Record<string, (input: Record<string, unknown>) => Promise<u
 
   get_investment_yields: async () => {
     const data = await fetchJson(
-      'https://rendimientos.co/api/fci',
-      '/api/yields?source=fci',
-    )
+      '/api/yields?source=config',
+      'https://rendimientos.co/api/config',
+    ) as Record<string, unknown> | null
 
-    if (Array.isArray(data) && data.length > 0) {
-      // Extract top FCI funds by TNA — try common field names
-      const funds = data
-        .filter((f: Record<string, unknown>) => typeof f.tna === 'number' || typeof f.TNA === 'number')
-        .map((f: Record<string, unknown>) => ({
-          name: String(f.nombre ?? f.name ?? f.fondo ?? 'Unknown'),
-          tna: Number(f.tna ?? f.TNA ?? 0),
+    if (data && typeof data === 'object') {
+      // /api/config returns { garantizados: [...], especiales: [...], ... } with TNA values
+      const allProducts = [
+        ...((data.garantizados ?? []) as Record<string, unknown>[]),
+        ...((data.especiales ?? []) as Record<string, unknown>[]),
+      ]
+
+      const funds = allProducts
+        .filter((f) => typeof f.tna === 'number' && f.activo !== false)
+        .map((f) => ({
+          name: String(f.nombre ?? 'Unknown'),
+          tna: Number(f.tna),
+          tipo: String(f.tipo ?? ''),
         }))
-        .sort((a: { tna: number }, b: { tna: number }) => b.tna - a.tna)
+        .sort((a, b) => b.tna - a.tna)
         .slice(0, 5)
 
       const bestTna = funds.length > 0 ? funds[0].tna : 40
       return {
         topFunds: funds,
         bestAnnualYield: bestTna / 100,
-        source: 'rendimientos.co',
+        source: 'rendimientos.co/config',
         live: true,
       }
     }
@@ -87,8 +93,8 @@ const toolHandlers: Record<string, (input: Record<string, unknown>) => Promise<u
 
   get_inflation_data: async () => {
     const data = await fetchJson(
-      'https://rendimientos.co/api/cer-ultimo',
       '/api/yields?source=cer',
+      'https://rendimientos.co/api/cer-ultimo',
     )
 
     if (data && typeof data === 'object' && 'valor' in (data as Record<string, unknown>)) {

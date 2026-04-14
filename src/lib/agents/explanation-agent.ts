@@ -7,6 +7,7 @@ import type {
   EnrichedSource,
   ExplanationResult,
   InfletaInsight,
+  LiveRates,
   OptimizationAgentResult,
   RiskAssessment,
 } from './types'
@@ -23,16 +24,16 @@ Return ONLY valid JSON (no markdown fences):
     {
       "kind": "savings" | "opportunity_cost" | "idle_balance" | "invest_suggestion",
       "headline": "short headline (max 40 chars)",
-      "detail": "one sentence detail",
+      "detail": "one sentence detail — for invest_suggestion, ALWAYS recommend specific funds/products by name",
       "deltaUSD": <number, positive = benefit, negative = cost>
     }
   ]
 }
 
-Generate exactly 2-3 insights:
+Generate exactly 3 insights:
 1. ALWAYS include a "savings" insight showing fee savings vs worst-case Visa
-2. If any balance source with yield > 0 was used, add an "opportunity_cost" insight
-3. If idle balances remain OR if credit card + investing would be better, add an "invest_suggestion" insight`
+2. If balance sources with yield > 0 were NOT spent (kept invested), add an "opportunity_cost" insight explaining the benefit of keeping them invested
+3. ALWAYS include an "invest_suggestion" insight that recommends SPECIFIC investment products by name from the FCI/investment data provided. Tell the user exactly WHERE to put their idle money (e.g. "Put your idle ARS in Ualá Plus 2 at 29% TNA").`
 
 function buildPrompt(
   merchant: string,
@@ -40,6 +41,7 @@ function buildPrompt(
   optResult: OptimizationAgentResult,
   enrichedSources: EnrichedSource[],
   riskAssessment: RiskAssessment,
+  liveRates: LiveRates,
 ): string {
   const worstFee = getWorstCaseFee(amount)
   const savings = worstFee - optResult.totalFees
@@ -54,8 +56,13 @@ function buildPrompt(
     return `- ${s.label}: yield ${(s.effectiveYieldRate * 100).toFixed(1)}% APY, remaining balance: ${remaining.toFixed(2)} ${s.currency}`
   }).join('\n')
 
+  const fciLines = liveRates.fciTopFunds.length > 0
+    ? liveRates.fciTopFunds.map(f => `- ${f.name}: ${f.tna}% TNA`).join('\n')
+    : '- No live FCI data available'
+
   return `Payment: $${amount.toFixed(2)} at ${merchant}
 Risk: ${riskAssessment.level}
+ARS/USD exchange rate: ${liveRates.arsExchangeRate}
 
 Allocation:
 ${allocLines}
@@ -70,12 +77,16 @@ Alternative considered: ${optResult.alternativeConsidered}
 Source balances after payment:
 ${sourceLines}
 
-Generate the explanation and insights.`
+Available investment products in Argentina (live data):
+${fciLines}
+
+Generate the explanation and insights. For the invest_suggestion, recommend specific products from the list above by name and rate.`
 }
 
 function buildFallbackResult(
   amount: number,
   optResult: OptimizationAgentResult,
+  liveRates: LiveRates,
 ): ExplanationResult {
   const savings = getWorstCaseFee(amount) - optResult.totalFees
   const insightLines: InfletaInsight[] = [
@@ -96,6 +107,17 @@ function buildFallbackResult(
     })
   }
 
+  // Add investment suggestion from live data
+  const bestFund = liveRates.fciTopFunds[0]
+  if (bestFund) {
+    insightLines.push({
+      kind: 'invest_suggestion',
+      headline: `Invest in ${bestFund.name}`,
+      detail: `Put your idle ARS in ${bestFund.name} at ${bestFund.tna}% TNA to maximize returns.`,
+      deltaUSD: 0,
+    })
+  }
+
   return {
     shortExplanation: `MixPay optimized your payment with $${optResult.totalFees.toFixed(2)} in fees, saving $${savings.toFixed(2)} vs a traditional credit card.`,
     savingsVsVisa: savings,
@@ -109,12 +131,13 @@ export async function runExplanationAgent(
   optResult: OptimizationAgentResult,
   enrichedSources: EnrichedSource[],
   riskAssessment: RiskAssessment,
+  liveRates: LiveRates,
   onEvent: (e: AgentEvent) => void,
 ): Promise<ExplanationResult> {
   onEvent({ kind: 'agent_start', agentName: 'ExplanationAgent', timestamp: Date.now() })
 
   const responseText = await callClaude(
-    buildPrompt(merchant, amount, optResult, enrichedSources, riskAssessment),
+    buildPrompt(merchant, amount, optResult, enrichedSources, riskAssessment, liveRates),
     {
       model: 'claude-sonnet-4-6',
       maxTokens: 800,
@@ -133,7 +156,7 @@ export async function runExplanationAgent(
       insightLines: Array.isArray(parsed.insightLines) ? parsed.insightLines : [],
     }
   } catch {
-    result = buildFallbackResult(amount, optResult)
+    result = buildFallbackResult(amount, optResult, liveRates)
   }
 
   onEvent({ kind: 'agent_done', agentName: 'ExplanationAgent', timestamp: Date.now() })

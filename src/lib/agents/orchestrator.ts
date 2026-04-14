@@ -1,9 +1,11 @@
 // Orchestrator — coordinates all agents in sequence.
-// TypeScript manages the call order; each agent is an independent Claude call.
+// Uses pre-cached rates when available (fetched on app mount),
+// falls back to Rates Agent only if cache is cold.
 
 import type { PaymentSource, SourceUsage, Transaction } from '../../types'
 import { hasApiKey } from '../claude-client'
-import type { AgentEvent, AgentPipelineResult, OptimizationAgentResult } from './types'
+import { getCachedRates, getRates, enrichSources } from '../rates-cache'
+import type { AgentEvent, AgentPipelineResult, EnrichedSource, LiveRates, OptimizationAgentResult } from './types'
 import { buildFallbackPipelineResult } from './fallback'
 import { runRatesAgent } from './rates-agent'
 import { runOptimizationAgent } from './optimization-agent'
@@ -24,6 +26,33 @@ function toSourceUsages(optResult: OptimizationAgentResult): SourceUsage[] {
   }))
 }
 
+/** Try to get rates from cache first, then getRates(), then Rates Agent as last resort. */
+async function resolveRates(
+  sources: PaymentSource[],
+  onEvent: (e: AgentEvent) => void,
+): Promise<{ enrichedSources: EnrichedSource[]; liveRates: LiveRates }> {
+  // 1. Check in-memory cache (instant, no network)
+  const cached = getCachedRates()
+  if (cached) {
+    onEvent({ kind: 'agent_start', agentName: 'RatesAgent', timestamp: Date.now() })
+    onEvent({ kind: 'agent_progress', agentName: 'RatesAgent', message: 'Using cached market data', timestamp: Date.now() })
+    onEvent({ kind: 'agent_done', agentName: 'RatesAgent', timestamp: Date.now() })
+    return { enrichedSources: enrichSources(sources, cached), liveRates: cached }
+  }
+
+  // 2. Fetch directly (parallel HTTP, no Claude call)
+  try {
+    onEvent({ kind: 'agent_start', agentName: 'RatesAgent', timestamp: Date.now() })
+    onEvent({ kind: 'agent_progress', agentName: 'RatesAgent', message: 'Fetching live rates...', timestamp: Date.now() })
+    const liveRates = await getRates()
+    onEvent({ kind: 'agent_done', agentName: 'RatesAgent', timestamp: Date.now() })
+    return { enrichedSources: enrichSources(sources, liveRates), liveRates }
+  } catch {
+    // 3. Fall back to Rates Agent (Claude + tool_use)
+    return runRatesAgent(sources, onEvent)
+  }
+}
+
 export async function runOrchestrator(
   merchant: string,
   amount: number,
@@ -37,8 +66,8 @@ export async function runOrchestrator(
   }
 
   try {
-    // ── Step 1: Rates Agent (must complete before optimization) ─────
-    const { enrichedSources, liveRates } = await runRatesAgent(sources, onEvent)
+    // ── Step 1: Resolve rates (cache → fetch → Rates Agent) ────────
+    const { enrichedSources, liveRates } = await resolveRates(sources, onEvent)
 
     // ── Step 2: Optimization + Risk in parallel ────────────────────
     const recentTx = recentTransactions.slice(0, 5).map(t => ({
@@ -58,6 +87,7 @@ export async function runOrchestrator(
       optAgentResult,
       enrichedSources,
       riskAssessment,
+      liveRates,
       onEvent,
     )
 

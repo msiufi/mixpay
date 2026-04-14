@@ -110,9 +110,9 @@ export async function runOptimizationAgent(
       [{ role: 'user', content: buildUserPrompt(amountUSD, enrichedSources, liveRates) }],
       {
         model: 'claude-opus-4-6',
-        maxTokens: 4096,
+        maxTokens: 16000,
         systemPrompt: SYSTEM_PROMPT,
-        thinking: { type: 'enabled', budgetTokens: 6000 },
+        thinking: { type: 'enabled', budgetTokens: 10000 },
       },
     )) {
       hasContent = true
