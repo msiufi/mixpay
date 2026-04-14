@@ -5,7 +5,7 @@
 export const COMMISSION_RATE = 0.10
 
 /** Claude model for the Optimization Agent. 'claude-opus-4-6' for demo, 'claude-sonnet-4-6' for production. */
-export const OPTIMIZATION_MODEL = 'claude-sonnet-4-6'
+export const OPTIMIZATION_MODEL = 'claude-opus-4-6'
 
 /** Claude model for the Explanation Agent. */
 export const EXPLANATION_MODEL = 'claude-sonnet-4-6'
