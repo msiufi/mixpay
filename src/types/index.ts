@@ -9,6 +9,14 @@ export interface PaymentSource {
   available: number
   feeRate: number
   priority: number
+  // Credit card fields (only when kind === 'credit_card')
+  bank?: string
+  network?: string
+  customName?: string
+  creditLimit?: number
+  closingDay?: number
+  dueDay?: number
+  last4?: string
 }
 
 export interface SourceUsage {
