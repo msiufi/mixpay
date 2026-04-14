@@ -311,7 +311,7 @@ export default function Optimizing() {
                           </p>
                           {usage.currency === 'ARS' && (
                             <p className="text-xs opacity-70" style={{ color: 'inherit' }}>
-                              {usage.amountOriginal.toLocaleString('en-US', { maximumFractionDigits: 2 })} ARS
+                              {usage.amountOriginal.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ARS
                             </p>
                           )}
                         </div>

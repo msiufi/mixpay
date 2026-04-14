@@ -25,7 +25,7 @@ export default function Checkout() {
 
   const displayValue = inputFocused
     ? amount > 0 ? amount.toString() : ''
-    : amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    : amount.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
   function handleAmountChange(e: React.ChangeEvent<HTMLInputElement>) {
     const val = e.target.value.replace(/[^0-9.]/g, '')

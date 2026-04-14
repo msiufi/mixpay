@@ -79,7 +79,7 @@ export default function Success() {
                     <p className="font-semibold text-[#F8FAFC]">${usage.amountUSD.toFixed(2)}</p>
                     {usage.currency === 'ARS' && (
                       <p className="text-xs text-[#64748B]">
-                        {usage.amountOriginal.toLocaleString('en-US', { maximumFractionDigits: 2 })} ARS
+                        {usage.amountOriginal.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ARS
                       </p>
                     )}
                   </div>

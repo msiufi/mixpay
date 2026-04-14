@@ -29,7 +29,7 @@ function AddFundsModal({ onClose }: { onClose: () => void }) {
   const displayValue = focused
     ? rawAmount
     : numericValue > 0
-      ? numericValue.toLocaleString('en-US', { minimumFractionDigits: isArs ? 0 : 2, maximumFractionDigits: isArs ? 0 : 2 })
+      ? numericValue.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
       : ''
 
   function handleConfirm() {
@@ -176,21 +176,21 @@ export default function Dashboard() {
               <span>
                 USD/ARS:{' '}
                 <span className="text-[#F59E0B] font-semibold">
-                  ${liveRates.arsExchangeRate.toLocaleString('en-US', { maximumFractionDigits: 2 })}
+                  ${liveRates.arsExchangeRate.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
               </span>
               <span className="text-[#334155]">|</span>
               <span>
                 Best FCI:{' '}
                 <span className="text-emerald-400 font-semibold">
-                  {Math.max(...liveRates.fciTopFunds.map(f => f.tna)).toLocaleString('en-US', { maximumFractionDigits: 2 })}% TNA
+                  {Math.max(...liveRates.fciTopFunds.map(f => f.tna)).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}% TNA
                 </span>
               </span>
               <span className="text-[#334155]">|</span>
               <span>
                 Inflation:{' '}
                 <span className="text-[#F59E0B] font-semibold">
-                  {(liveRates.monthlyInflation * 100).toLocaleString('en-US', { maximumFractionDigits: 2 })}%/mo
+                  {(liveRates.monthlyInflation * 100).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%/mo
                 </span>
               </span>
             </>
@@ -208,7 +208,7 @@ export default function Dashboard() {
             {ownSources.map(source => {
               const colors = getSourceColors(source.id)
               const displayValue = source.currency === 'ARS'
-                ? source.available.toLocaleString('en-US', { maximumFractionDigits: 0 })
+                ? source.available.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
                 : `$${source.available.toFixed(2)}`
               return (
                 <div
@@ -250,7 +250,7 @@ export default function Dashboard() {
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-[#F8FAFC] text-sm">{source.label}</p>
                       <p className="text-xs text-[#64748B]">
-                        {(source.feeRate * 100).toFixed(1)}% fee · ${source.available.toLocaleString('en-US', { maximumFractionDigits: 2 })} limit
+                        {(source.feeRate * 100).toFixed(1)}% fee · ${source.available.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} limit
                       </p>
                     </div>
                     <span className="text-xs bg-[#1E293B] text-[#64748B] px-2 py-1 rounded-full">
@@ -316,7 +316,7 @@ export default function Dashboard() {
                             className={`text-xs ${colors.bg} ${colors.text} px-2 py-0.5 rounded-full font-medium`}
                           >
                             {usage.currency === 'ARS'
-                              ? `ARS ${usage.amountOriginal.toLocaleString('en-US', { maximumFractionDigits: 2 })}`
+                              ? `ARS ${usage.amountOriginal.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                               : `${usage.label} $${usage.amountUSD.toFixed(2)}`}
                           </span>
                         )
