@@ -6,7 +6,9 @@ import { ARS_RATE } from '../lib/optimizer'
 import { getSourceColors } from '../lib/source-colors'
 import { mockCard } from '../lib/mock-data'
 import AIExplanationModal from '../components/AIExplanationModal'
-import type { Transaction } from '../types'
+import CardDisplay from '../components/CardDisplay'
+import AddCardModal from '../components/AddCardModal'
+import type { PaymentSource, Transaction } from '../types'
 
 type FundCurrency = 'usd' | 'usdc' | 'ars'
 
@@ -91,9 +93,11 @@ function AddFundsModal({ onClose }: { onClose: () => void }) {
 
 export default function Dashboard() {
   const navigate = useNavigate()
-  const { sources, transactions } = useSession()
+  const { sources, transactions, addCard, updateCard, removeCard, resetAll } = useSession()
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null)
   const [showAddFunds, setShowAddFunds] = useState(false)
+  const [showAddCard, setShowAddCard] = useState(false)
+  const [editingCard, setEditingCard] = useState<PaymentSource | null>(null)
 
   const ownSources = sources.filter(s => s.kind === 'balance')
   const cardSources = sources.filter(s => s.kind === 'credit_card')
@@ -122,8 +126,23 @@ export default function Dashboard() {
               MixPay
             </span>
           </button>
-          <div className="w-8 h-8 bg-[#272F42] rounded-full flex items-center justify-center text-sm font-medium text-[#F8FAFC]">
-            JD
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                if (window.confirm('¿Resetear todos los datos? Se borrarán las tarjetas y transacciones.')) {
+                  resetAll()
+                }
+              }}
+              className="w-8 h-8 bg-[#272F42] rounded-full flex items-center justify-center text-[#64748B] hover:text-[#F87171] hover:bg-[#F87171]/10 transition-all"
+              title="Resetear datos"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+            </button>
+            <div className="w-8 h-8 bg-[#272F42] rounded-full flex items-center justify-center text-sm font-medium text-[#F8FAFC]">
+              JD
+            </div>
           </div>
         </div>
       </div>
@@ -175,39 +194,40 @@ export default function Dashboard() {
         </div>
 
         {/* Credit Cards */}
-        {cardSources.length > 0 && (
-          <div>
-            <p className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wide mb-3">
-              Credit Cards
-            </p>
-            <div className="space-y-2">
-              {cardSources.map(source => {
-                const colors = getSourceColors(source.id)
-                return (
-                  <div
-                    key={source.id}
-                    className="bg-[#272F42] rounded-xl p-4 border border-[#334155] flex items-center gap-3"
-                  >
-                    <div className={`w-10 h-8 ${colors.bg} border ${colors.bg.replace('/10', '/30')} rounded flex items-center justify-center flex-shrink-0`}>
-                      <span className={`${colors.text} text-xs font-bold uppercase`}>
-                        {source.id === 'visa' ? 'VISA' : 'MC'}
-                      </span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-[#F8FAFC] text-sm">{source.label}</p>
-                      <p className="text-xs text-[#64748B]">
-                        {(source.feeRate * 100).toFixed(1)}% fee · ${source.available.toLocaleString()} limit
-                      </p>
-                    </div>
-                    <span className="text-xs bg-[#1E293B] text-[#64748B] px-2 py-1 rounded-full">
-                      Backup
-                    </span>
-                  </div>
-                )
-              })}
-            </div>
+        <div>
+          <p className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wide mb-3">
+            Credit Cards
+          </p>
+          <div className={cardSources.length >= 4
+            ? 'flex gap-3 overflow-x-auto pb-2 scrollbar-none'
+            : 'grid grid-cols-2 gap-3'
+          }>
+            {cardSources.map(source => (
+              <CardDisplay
+                key={source.id}
+                source={source}
+                onEdit={(id) => {
+                  const card = cardSources.find(c => c.id === id)
+                  if (card) {
+                    setEditingCard(card)
+                    setShowAddCard(true)
+                  }
+                }}
+                onDelete={(id) => {
+                  if (window.confirm('¿Eliminar esta tarjeta?')) {
+                    removeCard(id)
+                  }
+                }}
+              />
+            ))}
           </div>
-        )}
+          <button
+            onClick={() => { setEditingCard(null); setShowAddCard(true) }}
+            className="w-full mt-3 border-2 border-dashed border-[#334155] rounded-2xl py-4 text-[#64748B] text-sm font-medium hover:border-[#F59E0B] hover:text-[#F59E0B] transition-all"
+          >
+            + Agregar tarjeta
+          </button>
+        </div>
 
         {/* Linked Card */}
         <div>
@@ -294,6 +314,31 @@ export default function Dashboard() {
           merchant={selectedTx.merchant}
           amount={selectedTx.amount}
           result={selectedTx.result}
+        />
+      )}
+
+      {showAddCard && (
+        <AddCardModal
+          onClose={() => { setShowAddCard(false); setEditingCard(null) }}
+          onSave={(card) => {
+            if (editingCard) {
+              updateCard(editingCard.id, {
+                bank: card.bank,
+                network: card.network,
+                customName: card.customName,
+                currency: card.currency,
+                creditLimit: card.creditLimit,
+                available: card.creditLimit,
+                closingDay: card.closingDay,
+                dueDay: card.dueDay,
+                feeRate: card.feeRate,
+                symbol: card.currency === 'ARS' ? '₱' : '$',
+              })
+            } else {
+              addCard(card)
+            }
+          }}
+          editCard={editingCard}
         />
       )}
     </div>
