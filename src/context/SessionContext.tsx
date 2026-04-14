@@ -26,10 +26,29 @@ interface SessionContextValue {
 
 const SessionContext = createContext<SessionContextValue | null>(null)
 
+const SOURCES_KEY = 'mixpay_sources'
+const TX_KEY = 'mixpay_transactions'
+
+function loadFromStorage<T>(key: string): T | null {
+  try {
+    const raw = localStorage.getItem(key)
+    if (!raw) return null
+    return JSON.parse(raw) as T
+  } catch { return null }
+}
+
+function saveToStorage(key: string, value: unknown) {
+  try { localStorage.setItem(key, JSON.stringify(value)) } catch { /* full */ }
+}
+
 function getInitialSources(): PaymentSource[] {
+  // Try fully persisted sources first (includes balances + cards with updated amounts)
+  const stored = loadFromStorage<PaymentSource[]>(SOURCES_KEY)
+  if (stored && stored.length > 0) return stored
+
+  // Fallback: default balances + stored or default cards
   const storedCards = loadCards()
   const cards = storedCards ?? defaultCards
-  // Deduplicate by ID (localStorage may have stale copies of default cards)
   const all = [...defaultBalances, ...cards]
   const seen = new Set<string>()
   return all.filter(s => {
@@ -39,12 +58,20 @@ function getInitialSources(): PaymentSource[] {
   })
 }
 
+function getInitialTransactions(): Transaction[] {
+  return loadFromStorage<Transaction[]>(TX_KEY) ?? mockTransactions
+}
+
 export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [sources, setSources] = useState<PaymentSource[]>(getInitialSources)
-  const [transactions, setTransactions] = useState<Transaction[]>(mockTransactions)
+  const [transactions, setTransactions] = useState<Transaction[]>(getInitialTransactions)
 
   // Prefetch live rates on app mount so they're ready by checkout time
   useEffect(() => { prefetchRates() }, [])
+
+  // Persist state to localStorage on every change
+  useEffect(() => { saveToStorage(SOURCES_KEY, sources) }, [sources])
+  useEffect(() => { saveToStorage(TX_KEY, transactions) }, [transactions])
 
   function persistCards(nextSources: PaymentSource[]) {
     const cards = nextSources.filter(s => s.kind === 'credit_card')
@@ -150,6 +177,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   function resetAll() {
     clearCards()
+    localStorage.removeItem(SOURCES_KEY)
+    localStorage.removeItem(TX_KEY)
     setSources([...defaultBalances, ...defaultCards])
     setTransactions(mockTransactions)
   }
