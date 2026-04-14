@@ -1,11 +1,12 @@
 import { useNavigate } from 'react-router'
+import { COMMISSION_RATE } from '../lib/config'
 
 const PLANS = [
   {
     name: 'Free',
     price: '$0',
     period: '/mo',
-    commission: '1%',
+    commission: `${(COMMISSION_RATE * 100).toFixed(0)}%`,
     features: ['AI-optimized payments', 'Up to 5 sources', 'Basic insights'],
     current: true,
   },
@@ -61,7 +62,7 @@ export default function Pro() {
             MixPay Pro
           </h1>
           <p className="text-[#64748B] mt-2 text-sm">
-            Remove the 10% commission and unlock advanced features
+            {`Remove the ${(COMMISSION_RATE * 100).toFixed(0)}% commission and unlock advanced features`}
           </p>
         </div>
 

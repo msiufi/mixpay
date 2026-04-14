@@ -3,6 +3,7 @@
 // Math tools do the precise calculations (fees, currency conversion, true cost).
 
 import { callClaudeWithTools } from '../claude-client'
+import { OPTIMIZATION_MODEL } from '../config'
 import { optimizePayment } from '../optimizer'
 import { mathTools, createMathToolHandlers } from './math-tools'
 import type { AgentEvent, EnrichedSource, LiveRates, OptimizationAgentResult } from './types'
@@ -91,7 +92,7 @@ export async function runOptimizationAgent(
     mathTools,
     toolHandlers,
     {
-      model: 'claude-opus-4-6',
+      model: OPTIMIZATION_MODEL,
       maxTokens: 4096,
       systemPrompt: SYSTEM_PROMPT,
     },

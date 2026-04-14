@@ -1,6 +1,7 @@
-// Explanation Agent — generates smart insights and a friendly explanation.
+// Explanation Agent — generates smart investment insights with strict consistency rules.
 
 import { callClaude } from '../claude-client'
+import { EXPLANATION_MODEL, ARG_MONTHLY_INFLATION, WORST_CASE_FEE_RATE } from '../config'
 import { getWorstCaseFee } from '../optimizer'
 import type {
   AgentEvent,
@@ -12,80 +13,94 @@ import type {
   RiskAssessment,
 } from './types'
 
-const SYSTEM_PROMPT = `You are MixPay's financial advisor. Generate a friendly explanation of a payment optimization and smart investment insights.
+const SYSTEM_PROMPT = `You are MixPay's financial advisor. Generate EXACTLY 3 investment insights following these strict rules.
 
-Key insight: sometimes paying with a credit card (higher fee) is smarter than using cash, because the cash can stay invested and earn yield that EXCEEDS the card fee.
+## RULES YOU MUST ALWAYS FOLLOW
+
+1. NEVER invent numbers. Only use the exact numbers provided in the data below.
+2. ALWAYS compare yields against inflation. Argentina's monthly inflation is ~${(ARG_MONTHLY_INFLATION * 100).toFixed(1)}% (~${(ARG_MONTHLY_INFLATION * 12 * 100).toFixed(0)}% annualized). A yield is only "real" if it beats inflation.
+3. ALWAYS mention specific FCI/investment product names and their TNA from the data provided.
+4. Credit card limits are NOT investable money. Never suggest "investing" credit card available balance.
+5. Keep each insight to 1-2 sentences max.
+6. deltaUSD must always be a number (not a string).
+
+## INSIGHT STRUCTURE (exactly 3, in this order)
+
+### Insight 1: "savings" — Fee comparison
+- Compare total fees paid vs worst case (${(WORST_CASE_FEE_RATE * 100).toFixed(1)}% Visa)
+- Show dollar amount saved
+- deltaUSD = positive number (savings)
+
+### Insight 2: "opportunity_cost" — Inflation-adjusted yield analysis
+- If balance sources (ARS, USD, USDC) were kept invested: explain the benefit vs inflation
+- Calculate: nominal yield - inflation = real yield. Example: "Your ARS earns 29% TNA, but with ~35% annual inflation, the real yield is -6%. Consider higher-yield alternatives."
+- If balance sources were spent: show the monthly opportunity cost lost
+- deltaUSD = positive if kept invested (benefit), negative if spent (cost)
+
+### Insight 3: "invest_suggestion" — Specific investment recommendation
+- Recommend the TOP 1-2 specific products by name and TNA from the FCI data
+- Compare their yield to inflation: "X at Y% TNA beats inflation (~35% annual) by Z points"
+- Only suggest for BALANCE sources (ARS, USD, USDC), never for credit cards
+- deltaUSD = estimated monthly gain from the recommendation
+
+## OUTPUT FORMAT
 
 Return ONLY valid JSON (no markdown fences):
 {
-  "shortExplanation": "2-3 friendly sentences explaining the optimization. Make the user feel smart.",
-  "savingsVsVisa": <number, USD saved vs 3.5% Visa>,
+  "shortExplanation": "2-3 friendly sentences about the optimization. Make the user feel smart.",
+  "savingsVsVisa": <number>,
   "insightLines": [
-    {
-      "kind": "savings" | "opportunity_cost" | "idle_balance" | "invest_suggestion",
-      "headline": "short headline (max 40 chars)",
-      "detail": "one sentence detail — for invest_suggestion, ALWAYS recommend specific funds/products by name",
-      "deltaUSD": <number, positive = benefit, negative = cost>
-    }
+    { "kind": "savings", "headline": "max 40 chars", "detail": "1-2 sentences", "deltaUSD": <number> },
+    { "kind": "opportunity_cost", "headline": "max 40 chars", "detail": "1-2 sentences with inflation comparison", "deltaUSD": <number> },
+    { "kind": "invest_suggestion", "headline": "max 40 chars", "detail": "1-2 sentences with specific product names and TNA vs inflation", "deltaUSD": <number> }
   ]
-}
-
-STRICT RULES:
-- Credit card available limit is NOT money the user owns. NEVER suggest "investing" credit card limits. Credit cards are borrowed money — they have no idle balance to invest.
-- Only suggest investing BALANCE sources (USD, USDC, ARS) — these are real funds the user owns.
-- deltaUSD must be a number, not a string.
-
-Generate exactly 3 insights:
-1. ALWAYS include a "savings" insight showing fee savings vs worst-case Visa
-2. If balance sources with yield > 0 were NOT spent (kept invested), add an "opportunity_cost" insight explaining the benefit of keeping them invested. If they WERE spent, explain the tradeoff.
-3. ALWAYS include an "invest_suggestion" insight that recommends SPECIFIC investment products by name from the FCI/investment data provided. Tell the user WHERE to put their idle BALANCE money — for ARS recommend specific FCI funds, for USD/USDC recommend keeping them in yield protocols. NEVER mention credit card limits here.`
+}`
 
 function buildPrompt(
   merchant: string,
   amount: number,
   optResult: OptimizationAgentResult,
   enrichedSources: EnrichedSource[],
-  riskAssessment: RiskAssessment,
+  _riskAssessment: RiskAssessment,
   liveRates: LiveRates,
 ): string {
   const worstFee = getWorstCaseFee(amount)
   const savings = worstFee - optResult.totalFees
+  const annualInflation = ARG_MONTHLY_INFLATION * 12
 
   const allocLines = optResult.allocations.map(a =>
-    `- ${a.label}: $${a.amountUSD.toFixed(2)} (fee: $${a.fee.toFixed(4)}, opportunity cost: $${a.opportunityCostUSD.toFixed(4)}, true cost: $${a.trueCostUSD.toFixed(4)})`
+    `- ${a.label}: $${a.amountUSD.toFixed(2)} (fee: $${a.fee.toFixed(2)}, opportunity cost: $${a.opportunityCostUSD.toFixed(2)})`
   ).join('\n')
 
   const sourceLines = enrichedSources.map(s => {
     const used = optResult.allocations.find(a => a.sourceId === s.id)
     const remaining = used ? s.available - used.amountOriginal : s.available
-    return `- ${s.label}: yield ${(s.effectiveYieldRate * 100).toFixed(1)}% APY, remaining balance: ${remaining.toFixed(2)} ${s.currency}`
+    const realYield = s.effectiveYieldRate - annualInflation
+    return `- ${s.label} (${s.kind}): yield ${(s.effectiveYieldRate * 100).toFixed(1)}% TNA, real yield vs inflation: ${(realYield * 100).toFixed(1)}%, remaining: ${remaining.toFixed(2)} ${s.currency}`
   }).join('\n')
 
-  const fciLines = liveRates.fciTopFunds.length > 0
-    ? liveRates.fciTopFunds.map(f => `- ${f.name}: ${f.tna}% TNA`).join('\n')
-    : '- No live FCI data available'
+  const fciLines = liveRates.fciTopFunds.map(f => {
+    const realYield = (f.tna / 100) - annualInflation
+    return `- ${f.name}: ${f.tna}% TNA (real yield vs ${(annualInflation * 100).toFixed(0)}% inflation: ${(realYield * 100).toFixed(1)}%)`
+  }).join('\n')
 
   return `Payment: $${amount.toFixed(2)} at ${merchant}
-Risk: ${riskAssessment.level}
-ARS/USD exchange rate: ${liveRates.arsExchangeRate}
+Argentine monthly inflation: ${(ARG_MONTHLY_INFLATION * 100).toFixed(1)}% (~${(annualInflation * 100).toFixed(0)}% annualized)
+ARS/USD rate: ${liveRates.arsExchangeRate}
 
 Allocation:
 ${allocLines}
 
-Total fees: $${optResult.totalFees.toFixed(4)}
-Total opportunity cost: $${optResult.totalOpportunityCost.toFixed(4)}
-Savings vs Visa (3.5%): $${savings.toFixed(4)}
-
-Agent reasoning: ${optResult.reasoning}
-Alternative considered: ${optResult.alternativeConsidered}
+Total fees: $${optResult.totalFees.toFixed(2)}
+Savings vs Visa (${(WORST_CASE_FEE_RATE * 100).toFixed(1)}%): $${savings.toFixed(2)}
 
 Source balances after payment:
 ${sourceLines}
 
-Available investment products in Argentina (live data):
+Available investment products (live data):
 ${fciLines}
 
-Generate the explanation and insights. For the invest_suggestion, recommend specific products from the list above by name and rate.`
+Generate exactly 3 insights following the rules.`
 }
 
 function buildFallbackResult(
@@ -94,37 +109,36 @@ function buildFallbackResult(
   liveRates: LiveRates,
 ): ExplanationResult {
   const savings = getWorstCaseFee(amount) - optResult.totalFees
+  const bestFund = liveRates.fciTopFunds[0]
+  const annualInflation = ARG_MONTHLY_INFLATION * 12
+
   const insightLines: SmartInsight[] = [
     {
       kind: 'savings',
       headline: `Saved $${savings.toFixed(2)} vs Visa`,
-      detail: 'MixPay prioritized low-fee sources to minimize your costs.',
+      detail: `MixPay optimized your sources to avoid the ${(WORST_CASE_FEE_RATE * 100).toFixed(1)}% Visa fee.`,
       deltaUSD: savings,
+    },
+    {
+      kind: 'opportunity_cost',
+      headline: 'Yield vs inflation considered',
+      detail: `With ~${(annualInflation * 100).toFixed(0)}% annual inflation, keeping high-yield balances invested was the right call.`,
+      deltaUSD: optResult.totalOpportunityCost > 0 ? -optResult.totalOpportunityCost : 0,
     },
   ]
 
-  if (optResult.totalOpportunityCost > 0.001) {
-    insightLines.push({
-      kind: 'opportunity_cost',
-      headline: 'Yield impact considered',
-      detail: `$${optResult.totalOpportunityCost.toFixed(3)}/mo in foregone yield was factored into this optimization.`,
-      deltaUSD: -optResult.totalOpportunityCost,
-    })
-  }
-
-  // Add investment suggestion from live data
-  const bestFund = liveRates.fciTopFunds[0]
   if (bestFund) {
+    const realYield = (bestFund.tna / 100) - annualInflation
     insightLines.push({
       kind: 'invest_suggestion',
       headline: `Invest in ${bestFund.name}`,
-      detail: `Put your idle ARS in ${bestFund.name} at ${bestFund.tna}% TNA to maximize returns.`,
+      detail: `${bestFund.name} at ${bestFund.tna}% TNA gives ${(realYield * 100).toFixed(1)}% real yield above inflation.`,
       deltaUSD: 0,
     })
   }
 
   return {
-    shortExplanation: `MixPay optimized your payment with $${optResult.totalFees.toFixed(2)} in fees, saving $${savings.toFixed(2)} vs a traditional credit card.`,
+    shortExplanation: `MixPay saved you $${savings.toFixed(2)} vs a traditional Visa by optimizing across your payment sources.`,
     savingsVsVisa: savings,
     insightLines,
   }
@@ -144,7 +158,7 @@ export async function runExplanationAgent(
   const responseText = await callClaude(
     buildPrompt(merchant, amount, optResult, enrichedSources, riskAssessment, liveRates),
     {
-      model: 'claude-sonnet-4-6',
+      model: EXPLANATION_MODEL,
       maxTokens: 800,
       systemPrompt: SYSTEM_PROMPT,
     },

@@ -6,6 +6,7 @@ import { getSourceColors } from '../lib/source-colors'
 import { useSession } from '../context/SessionContext'
 import { useOptimizationStream } from '../hooks/useOptimizationStream'
 import BalanceBar from '../components/BalanceBar'
+import { COMMISSION_RATE } from '../lib/config'
 
 interface LocationState {
   merchant: string
@@ -199,11 +200,11 @@ export default function Optimizing() {
                   </div>
                   {(() => {
                     const gross = amount * 0.035 - result.totalFees
-                    const comm = parseFloat((gross * 0.10).toFixed(2))
+                    const comm = parseFloat((gross * COMMISSION_RATE).toFixed(2))
                     return (
                       <>
                         <div className="flex justify-between text-sm">
-                          <span className="text-[#94A3B8]">MixPay fee (10% of savings)</span>
+                          <span className="text-[#94A3B8]">MixPay fee ({(COMMISSION_RATE * 100).toFixed(0)}% of savings)</span>
                           <span className="font-medium text-[#F8FAFC]">${comm.toFixed(2)}</span>
                         </div>
                         <div className="flex justify-between text-sm border-t border-[#334155] pt-2">

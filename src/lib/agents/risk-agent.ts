@@ -1,6 +1,7 @@
 // Risk Agent — fast Claude Haiku call to flag unusual transactions.
 
 import { callClaude } from '../claude-client'
+import { RISK_MODEL } from '../config'
 import type { AgentEvent, RiskAssessment } from './types'
 
 const SYSTEM_PROMPT = `You are MixPay's risk assessment agent. Evaluate whether a payment transaction looks normal or suspicious.
@@ -42,7 +43,7 @@ export async function runRiskAgent(
 Is this transaction normal?`
 
   const responseText = await callClaude(prompt, {
-    model: 'claude-haiku-4-5-20251001',
+    model: RISK_MODEL,
     maxTokens: 256,
     systemPrompt: SYSTEM_PROMPT,
   })

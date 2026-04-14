@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from 'react-router'
 import type { OptimizationResult } from '../types'
 import type { AgentPipelineResult } from '../lib/agents/types'
 import { getWorstCaseFee } from '../lib/optimizer'
+import { COMMISSION_RATE } from '../lib/config'
 import { getSourceColors } from '../lib/source-colors'
 import SmartInsightPanel from '../components/SmartInsightPanel'
 
@@ -28,7 +29,7 @@ export default function Success() {
   const { merchant, amount, result, pipelineResult } = state
   const worstCaseFee = getWorstCaseFee(amount)
   const grossSavings = worstCaseFee - result.totalFees
-  const commission = parseFloat((grossSavings * 0.10).toFixed(2))
+  const commission = parseFloat((grossSavings * COMMISSION_RATE).toFixed(2))
   const savings = parseFloat((grossSavings - commission).toFixed(2))
   const hasCreditCard = result.sourceUsages.some(u => u.feeRate > 0.01)
 
@@ -90,7 +91,7 @@ export default function Success() {
               <span className="text-sm text-[#64748B]">${result.totalFees.toFixed(2)}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm text-[#64748B]">MixPay fee (10% of savings)</span>
+              <span className="text-sm text-[#64748B]">MixPay fee ({(COMMISSION_RATE * 100).toFixed(0)}% of savings)</span>
               <span className="text-sm text-[#64748B]">${commission.toFixed(2)}</span>
             </div>
             <div className="flex justify-between items-center">

@@ -88,12 +88,7 @@ export default function SmartInsightPanel({ insights, riskAssessment }: Props) {
         })}
       </div>
 
-      {/* Risk recommendation */}
-      {riskAssessment && riskAssessment.level !== 'low' && riskAssessment.recommendation && (
-        <p className="text-xs text-[#64748B] mt-3 pt-3 border-t border-[#334155]">
-          {riskAssessment.recommendation}
-        </p>
-      )}
+      {/* Risk recommendation — only show user-friendly text, not internal agent notes */}
     </div>
   )
 }

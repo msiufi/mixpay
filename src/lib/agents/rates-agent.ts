@@ -4,6 +4,7 @@
 import type { PaymentSource } from '../../types'
 import { callClaudeWithTools } from '../claude-client'
 import type { ClaudeTool } from '../claude-client'
+import { RATES_MODEL } from '../config'
 import type { AgentEvent, EnrichedSource, LiveRates } from './types'
 
 // ── Tool definitions ─────────────────────────────────────────────────
@@ -140,7 +141,7 @@ export async function runRatesAgent(
     tools,
     toolHandlers,
     {
-      model: 'claude-haiku-4-5-20251001',
+      model: RATES_MODEL,
       maxTokens: 1024,
       systemPrompt: SYSTEM_PROMPT,
     },
