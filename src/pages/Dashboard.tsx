@@ -1,12 +1,14 @@
 // src/pages/Dashboard.tsx
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router'
 import { useSession } from '../context/SessionContext'
 import { ARS_RATE } from '../lib/optimizer'
 import { getSourceColors } from '../lib/source-colors'
 import { mockCard } from '../lib/mock-data'
+import { getCachedRates } from '../lib/rates-cache'
 import AIExplanationModal from '../components/AIExplanationModal'
 import type { Transaction } from '../types'
+import type { LiveRates } from '../lib/agents/types'
 
 type FundCurrency = 'usd' | 'usdc' | 'ars'
 
@@ -94,6 +96,19 @@ export default function Dashboard() {
   const { sources, transactions } = useSession()
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null)
   const [showAddFunds, setShowAddFunds] = useState(false)
+  const [liveRates, setLiveRates] = useState<LiveRates | null>(getCachedRates)
+
+  useEffect(() => {
+    if (liveRates) return
+    const id = setInterval(() => {
+      const rates = getCachedRates()
+      if (rates) {
+        setLiveRates(rates)
+        clearInterval(id)
+      }
+    }, 2000)
+    return () => clearInterval(id)
+  }, [liveRates])
 
   const ownSources = sources.filter(s => s.kind === 'balance')
   const cardSources = sources.filter(s => s.kind === 'credit_card')
@@ -143,6 +158,36 @@ export default function Dashboard() {
           </div>
           <p className="text-4xl font-bold text-[#F59E0B]">${totalUSD.toFixed(2)}</p>
           <p className="text-[#64748B] text-sm mt-1">USD equivalent · own funds</p>
+        </div>
+
+        {/* Live Rates Strip */}
+        <div className="bg-[#1E293B] rounded-xl px-4 py-2.5 flex items-center justify-center gap-3 text-xs text-[#94A3B8]">
+          {liveRates ? (
+            <>
+              <span>
+                Blue Dollar:{' '}
+                <span className="text-[#F59E0B] font-semibold">
+                  ${liveRates.arsExchangeRate.toLocaleString('en-US', { maximumFractionDigits: 2 })}
+                </span>
+              </span>
+              <span className="text-[#334155]">|</span>
+              <span>
+                Best FCI:{' '}
+                <span className="text-emerald-400 font-semibold">
+                  {Math.max(...liveRates.fciTopFunds.map(f => f.tna)).toLocaleString('en-US', { maximumFractionDigits: 2 })}% TNA
+                </span>
+              </span>
+              <span className="text-[#334155]">|</span>
+              <span>
+                Inflation:{' '}
+                <span className="text-[#F59E0B] font-semibold">
+                  {(liveRates.monthlyInflation * 100).toLocaleString('en-US', { maximumFractionDigits: 2 })}%/mo
+                </span>
+              </span>
+            </>
+          ) : (
+            <span className="text-[#64748B] animate-pulse">Loading rates...</span>
+          )}
         </div>
 
         {/* Own Balances */}
