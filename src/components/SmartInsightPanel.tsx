@@ -1,8 +1,7 @@
-import type { SmartInsight, RiskAssessment } from '../lib/agents/types'
+import type { SmartInsight } from '../lib/agents/types'
 
 interface Props {
   insights: SmartInsight[]
-  riskAssessment?: RiskAssessment
 }
 
 const ICONS: Record<SmartInsight['kind'], { svg: string; color: string }> = {
@@ -24,27 +23,16 @@ const ICONS: Record<SmartInsight['kind'], { svg: string; color: string }> = {
   },
 }
 
-const RISK_COLORS: Record<string, string> = {
-  low: 'bg-emerald-500/20 text-emerald-400',
-  medium: 'bg-amber-500/20 text-amber-400',
-  high: 'bg-red-500/20 text-red-400',
-}
-
-export default function SmartInsightPanel({ insights, riskAssessment }: Props) {
+export default function SmartInsightPanel({ insights }: Props) {
   if (insights.length === 0) return null
 
   return (
     <div className="bg-[#1E293B] rounded-2xl p-5 border border-[#334155]">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="mb-4">
         <p className="text-xs font-semibold text-[#F59E0B] uppercase tracking-wide">
           Smart Insights
         </p>
-        {riskAssessment && riskAssessment.level !== 'low' && (
-          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${RISK_COLORS[riskAssessment.level]}`}>
-            Risk: {riskAssessment.level}
-          </span>
-        )}
       </div>
 
       {/* Insight rows */}

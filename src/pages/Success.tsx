@@ -146,7 +146,6 @@ export default function Success() {
         {pipelineResult && (
           <SmartInsightPanel
             insights={pipelineResult.explanation.insightLines}
-            riskAssessment={pipelineResult.riskAssessment}
           />
         )}
 
