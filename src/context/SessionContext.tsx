@@ -94,7 +94,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       const id = generateCardId()
       const last4 = generateLast4()
       const label = buildCardLabel(card.network, card.bank, card.customName)
-      const symbol = card.currency === 'ARS' ? '₱' : '$'
+      const symbol = card.currency === 'ARS' ? '$' : '$'
       const feeRate = card.feeRate ?? getDefaultFee(card.network)
       const maxPriority = prev.reduce((max, s) => Math.max(max, s.priority), 0)
       const newCard: PaymentSource = {

@@ -385,7 +385,7 @@ export default function Dashboard() {
                 closingDay: card.closingDay,
                 dueDay: card.dueDay,
                 feeRate: card.feeRate,
-                symbol: card.currency === 'ARS' ? '₱' : '$',
+                symbol: card.currency === 'ARS' ? '$' : '$',
               })
             } else {
               addCard(card)
