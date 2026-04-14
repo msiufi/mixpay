@@ -33,7 +33,7 @@ export async function buildFallbackPipelineResult(
   const cachedRates = getCachedRates()
   const liveRates: LiveRates = cachedRates ?? {
     arsExchangeRate: 1400,
-    fciTopFunds: [{ name: 'Ualá Plus 2 (est.)', tna: 29 }],
+    fciTopFunds: [{ name: 'Bank Money Market (est.)', tna: 20 }],
     monthlyInflation: ARG_MONTHLY_INFLATION,
     usAnnualInflation: US_ANNUAL_INFLATION,
     marketData: {},

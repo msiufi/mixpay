@@ -14,7 +14,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const endpoints: Record<string, string> = {
     fci: 'https://rendimientos.co/api/fci',
+    config: 'https://rendimientos.co/api/config',
     cer: 'https://rendimientos.co/api/cer-ultimo',
+    'cer-ultimo': 'https://rendimientos.co/api/cer-ultimo',
     lecaps: 'https://rendimientos.co/api/lecaps',
     mundo: 'https://rendimientos.co/api/mundo',
   }
