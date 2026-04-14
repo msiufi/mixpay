@@ -165,7 +165,7 @@ export default function Dashboard() {
           {liveRates ? (
             <>
               <span>
-                Blue Dollar:{' '}
+                USD/ARS:{' '}
                 <span className="text-[#F59E0B] font-semibold">
                   ${liveRates.arsExchangeRate.toLocaleString('en-US', { maximumFractionDigits: 2 })}
                 </span>
