@@ -6,6 +6,7 @@ interface SessionContextValue {
   sources: PaymentSource[]
   transactions: Transaction[]
   applyPayment: (result: OptimizationResult, merchant: string, amount: number) => void
+  addFunds: (sourceId: string, amount: number) => void
 }
 
 const SessionContext = createContext<SessionContextValue | null>(null)
@@ -33,8 +34,16 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     setTransactions(prev => [tx, ...prev])
   }
 
+  function addFunds(sourceId: string, amount: number) {
+    setSources(prev =>
+      prev.map(s =>
+        s.id === sourceId ? { ...s, available: parseFloat((s.available + amount).toFixed(10)) } : s
+      )
+    )
+  }
+
   return (
-    <SessionContext.Provider value={{ sources, transactions, applyPayment }}>
+    <SessionContext.Provider value={{ sources, transactions, applyPayment, addFunds }}>
       {children}
     </SessionContext.Provider>
   )

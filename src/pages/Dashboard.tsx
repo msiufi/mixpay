@@ -8,10 +8,92 @@ import { mockCard } from '../lib/mock-data'
 import AIExplanationModal from '../components/AIExplanationModal'
 import type { Transaction } from '../types'
 
+type FundCurrency = 'usd' | 'usdc' | 'ars'
+
+const FUND_OPTIONS: { id: FundCurrency; label: string; symbol: string; placeholder: string }[] = [
+  { id: 'usd',  label: 'USD',  symbol: '$', placeholder: 'Ej: 50' },
+  { id: 'usdc', label: 'USDC', symbol: '$', placeholder: 'Ej: 50' },
+  { id: 'ars',  label: 'ARS',  symbol: '₱', placeholder: 'Ej: 10000' },
+]
+
+function AddFundsModal({ onClose }: { onClose: () => void }) {
+  const { addFunds } = useSession()
+  const [selected, setSelected] = useState<FundCurrency>('usd')
+  const [amount, setAmount] = useState('')
+
+  function handleConfirm() {
+    const val = parseFloat(amount)
+    if (!val || val <= 0) return
+    addFunds(selected, val)
+    onClose()
+  }
+
+  const option = FUND_OPTIONS.find(o => o.id === selected)!
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/60"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-lg bg-[#131C2E] border border-[#334155] rounded-t-2xl p-6 space-y-5"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-[#F8FAFC]">Agregar fondos</h2>
+          <button onClick={onClose} className="text-[#64748B] hover:text-[#94A3B8] text-xl leading-none">✕</button>
+        </div>
+
+        {/* Currency selector */}
+        <div className="flex gap-2">
+          {FUND_OPTIONS.map(opt => (
+            <button
+              key={opt.id}
+              onClick={() => { setSelected(opt.id); setAmount('') }}
+              className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${
+                selected === opt.id
+                  ? 'bg-[#F59E0B] text-[#0F172A]'
+                  : 'bg-[#1E293B] text-[#94A3B8] hover:bg-[#272F42]'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Amount input */}
+        <div className="relative">
+          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#64748B] text-lg font-semibold">
+            {option.symbol}
+          </span>
+          <input
+            type="number"
+            min="0"
+            step="any"
+            value={amount}
+            onChange={e => setAmount(e.target.value)}
+            placeholder={option.placeholder}
+            className="w-full bg-[#1E293B] border border-[#334155] rounded-xl pl-9 pr-4 py-3 text-[#F8FAFC] text-base placeholder-[#475569] focus:outline-none focus:border-[#F59E0B]"
+          />
+        </div>
+
+        <button
+          onClick={handleConfirm}
+          disabled={!amount || parseFloat(amount) <= 0}
+          className="w-full bg-[#F59E0B] text-[#0F172A] py-3 rounded-xl font-semibold disabled:opacity-40 hover:bg-[#FBBF24] active:scale-95 transition-all"
+        >
+          Confirmar
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function Dashboard() {
   const navigate = useNavigate()
   const { sources, transactions } = useSession()
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null)
+  const [showAddFunds, setShowAddFunds] = useState(false)
 
   const ownSources = sources.filter(s => s.kind === 'balance')
   const cardSources = sources.filter(s => s.kind === 'credit_card')
@@ -26,7 +108,10 @@ export default function Dashboard() {
       {/* Header */}
       <div className="bg-[#0F172A] border-b border-[#334155] px-6 py-4 sticky top-0 z-10">
         <div className="max-w-lg mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <button
+            onClick={() => navigate('/')}
+            className="flex items-center gap-2 cursor-pointer"
+          >
             <div className="w-8 h-8 bg-[#F59E0B] rounded-lg flex items-center justify-center">
               <span className="text-[#0F172A] text-xs font-bold">M</span>
             </div>
@@ -36,7 +121,7 @@ export default function Dashboard() {
             >
               MixPay
             </span>
-          </div>
+          </button>
           <div className="w-8 h-8 bg-[#272F42] rounded-full flex items-center justify-center text-sm font-medium text-[#F8FAFC]">
             JD
           </div>
@@ -46,7 +131,16 @@ export default function Dashboard() {
       <div className="max-w-lg mx-auto px-6 py-8 space-y-6">
         {/* Total Balance Card */}
         <div className="bg-gradient-to-br from-[#1E2A4A] to-[#0F172A] border border-[#334155] rounded-2xl p-6 text-white">
-          <p className="text-[#94A3B8] text-sm mb-1">Total Balance</p>
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-[#94A3B8] text-sm">Total Balance</p>
+            <button
+              onClick={() => setShowAddFunds(true)}
+              className="w-7 h-7 bg-[#F59E0B] rounded-full flex items-center justify-center text-[#0F172A] font-bold text-lg leading-none hover:bg-[#FBBF24] active:scale-95 transition-all"
+              title="Agregar fondos"
+            >
+              +
+            </button>
+          </div>
           <p className="text-4xl font-bold text-[#F59E0B]">${totalUSD.toFixed(2)}</p>
           <p className="text-[#64748B] text-sm mt-1">USD equivalent · own funds</p>
         </div>
@@ -190,6 +284,8 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {showAddFunds && <AddFundsModal onClose={() => setShowAddFunds(false)} />}
 
       {selectedTx && (
         <AIExplanationModal
