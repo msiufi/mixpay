@@ -15,7 +15,7 @@ type FundCurrency = 'usd' | 'usdc' | 'ars'
 const FUND_OPTIONS: { id: FundCurrency; label: string; symbol: string; placeholder: string }[] = [
   { id: 'usd',  label: 'USD',  symbol: '$', placeholder: 'Ej: 50' },
   { id: 'usdc', label: 'USDC', symbol: '$', placeholder: 'Ej: 50' },
-  { id: 'ars',  label: 'ARS',  symbol: '₱', placeholder: 'Ej: 10000' },
+  { id: 'ars',  label: 'ARS',  symbol: '$', placeholder: 'Ej: 10000' },
 ]
 
 function AddFundsModal({ onClose }: { onClose: () => void }) {
