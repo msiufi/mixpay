@@ -5,7 +5,7 @@ import type { OptimizationResult } from '../types'
 import type { AgentPipelineResult } from '../lib/agents/types'
 import { getWorstCaseFee } from '../lib/optimizer'
 import { getSourceColors } from '../lib/source-colors'
-import InfletaInsightPanel from '../components/InfletaInsightPanel'
+import SmartInsightPanel from '../components/SmartInsightPanel'
 
 interface LocationState {
   merchant: string
@@ -27,7 +27,9 @@ export default function Success() {
 
   const { merchant, amount, result, pipelineResult } = state
   const worstCaseFee = getWorstCaseFee(amount)
-  const savings = parseFloat((worstCaseFee - result.totalFees).toFixed(2))
+  const grossSavings = worstCaseFee - result.totalFees
+  const commission = parseFloat((grossSavings * 0.10).toFixed(2))
+  const savings = parseFloat((grossSavings - commission).toFixed(2))
   const hasCreditCard = result.sourceUsages.some(u => u.feeRate > 0.01)
 
   return (
@@ -88,8 +90,12 @@ export default function Success() {
               <span className="text-sm text-[#64748B]">${result.totalFees.toFixed(2)}</span>
             </div>
             <div className="flex justify-between items-center">
+              <span className="text-sm text-[#64748B]">MixPay fee (10% of savings)</span>
+              <span className="text-sm text-[#64748B]">${commission.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between items-center">
               <span className="font-bold text-[#F8FAFC]">Total charged</span>
-              <span className="font-bold text-[#F59E0B] text-lg">${amount.toFixed(2)}</span>
+              <span className="font-bold text-[#F59E0B] text-lg">${(amount + result.totalFees + commission).toFixed(2)}</span>
             </div>
           </div>
         </div>
@@ -106,8 +112,8 @@ export default function Success() {
                 <span>${(amount + worstCaseFee).toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-[#94A3B8]">
-                <span>With MixPay</span>
-                <span>${(amount + result.totalFees).toFixed(2)}</span>
+                <span>With MixPay (incl. fee)</span>
+                <span>${(amount + result.totalFees + commission).toFixed(2)}</span>
               </div>
               <div className="flex justify-between font-bold text-emerald-400 border-t border-emerald-500/20 pt-2">
                 <span>You saved</span>
@@ -117,9 +123,27 @@ export default function Success() {
           </div>
         )}
 
-        {/* Infleta-Style Insight Panel */}
+        {/* Pro upsell */}
+        <button
+          onClick={() => navigate('/pro')}
+          className="w-full bg-[#1E293B] border border-[#334155] rounded-xl px-4 py-3 flex items-center justify-between hover:border-[#F59E0B]/40 transition-colors group"
+        >
+          <div className="text-left">
+            <p className="text-sm font-medium text-[#F8FAFC]">
+              Remove the ${commission.toFixed(2)} commission
+            </p>
+            <p className="text-xs text-[#64748B]">
+              Upgrade to Pro — 0% commission on all payments
+            </p>
+          </div>
+          <span className="text-[#F59E0B] text-sm font-semibold group-hover:translate-x-0.5 transition-transform">
+            →
+          </span>
+        </button>
+
+        {/* Smart Insight Panel */}
         {pipelineResult && (
-          <InfletaInsightPanel
+          <SmartInsightPanel
             insights={pipelineResult.explanation.insightLines}
             riskAssessment={pipelineResult.riskAssessment}
           />

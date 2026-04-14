@@ -192,15 +192,27 @@ export default function Optimizing() {
               >
                 <div className="bg-[#1E293B] rounded-xl px-4 py-3 space-y-2">
                   <div className="flex justify-between text-sm">
-                    <span className="text-[#94A3B8]">Estimated fees</span>
+                    <span className="text-[#94A3B8]">Conversion fees</span>
                     <span className="font-medium text-[#F8FAFC]">
-                      ${result.totalFees.toFixed(2)} USD
+                      ${result.totalFees.toFixed(2)}
                     </span>
                   </div>
-                  <div className="flex justify-between text-sm border-t border-[#334155] pt-2">
-                    <span className="font-semibold text-[#F8FAFC]">Total</span>
-                    <span className="font-bold text-[#F8FAFC]">${(amount + result.totalFees).toFixed(2)} USD</span>
-                  </div>
+                  {(() => {
+                    const gross = amount * 0.035 - result.totalFees
+                    const comm = parseFloat((gross * 0.10).toFixed(2))
+                    return (
+                      <>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-[#94A3B8]">MixPay fee (10% of savings)</span>
+                          <span className="font-medium text-[#F8FAFC]">${comm.toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between text-sm border-t border-[#334155] pt-2">
+                          <span className="font-semibold text-[#F8FAFC]">Total</span>
+                          <span className="font-bold text-[#F8FAFC]">${(amount + result.totalFees + comm).toFixed(2)}</span>
+                        </div>
+                      </>
+                    )
+                  })()}
                 </div>
               </div>
             )}

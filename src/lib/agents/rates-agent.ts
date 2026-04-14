@@ -16,7 +16,7 @@ const tools: ClaudeTool[] = [
   },
   {
     name: 'get_investment_yields',
-    description: 'Returns current Argentine FCI (mutual fund) annual yield rates from rendimientos.co',
+    description: 'Returns current Argentine FCI (mutual fund) annual yield rates for Argentine market',
     input_schema: { type: 'object', properties: {}, required: [] },
   },
   {
@@ -55,7 +55,7 @@ const toolHandlers: Record<string, (input: Record<string, unknown>) => Promise<u
   get_investment_yields: async () => {
     const data = await fetchJson(
       '/api/yields?source=config',
-      'https://rendimientos.co/api/config',
+      '/api/yields?source=config',
     ) as Record<string, unknown> | null
 
     if (data && typeof data === 'object') {
@@ -79,7 +79,7 @@ const toolHandlers: Record<string, (input: Record<string, unknown>) => Promise<u
       return {
         topFunds: funds,
         bestAnnualYield: bestTna / 100,
-        source: 'rendimientos.co/config',
+        source: 'market-data',
         live: true,
       }
     }
@@ -94,7 +94,7 @@ const toolHandlers: Record<string, (input: Record<string, unknown>) => Promise<u
   get_inflation_data: async () => {
     const data = await fetchJson(
       '/api/yields?source=cer',
-      'https://rendimientos.co/api/cer-ultimo',
+      '/api/yields?source=cer-ultimo',
     )
 
     if (data && typeof data === 'object' && 'valor' in (data as Record<string, unknown>)) {

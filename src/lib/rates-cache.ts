@@ -30,8 +30,8 @@ async function fetchLiveRates(): Promise<LiveRates> {
   // Fetch all 3 data sources in parallel
   const [dollarData, configData, cerData] = await Promise.all([
     fetchJson('/api/rates?type=blue', 'https://dolarapi.com/v1/dolares/blue'),
-    fetchJson('/api/yields?source=config', 'https://rendimientos.co/api/config'),
-    fetchJson('/api/yields?source=cer-ultimo', 'https://rendimientos.co/api/cer-ultimo'),
+    fetchJson('/api/yields?source=config', '/api/yields?source=config'),
+    fetchJson('/api/yields?source=cer-ultimo', '/api/yields?source=cer-ultimo'),
   ])
 
   // Parse dollar rate

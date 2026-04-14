@@ -1,11 +1,11 @@
-import type { InfletaInsight, RiskAssessment } from '../lib/agents/types'
+import type { SmartInsight, RiskAssessment } from '../lib/agents/types'
 
 interface Props {
-  insights: InfletaInsight[]
+  insights: SmartInsight[]
   riskAssessment?: RiskAssessment
 }
 
-const ICONS: Record<InfletaInsight['kind'], { svg: string; color: string }> = {
+const ICONS: Record<SmartInsight['kind'], { svg: string; color: string }> = {
   savings: {
     color: 'text-emerald-400',
     svg: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
@@ -30,7 +30,7 @@ const RISK_COLORS: Record<string, string> = {
   high: 'bg-red-500/20 text-red-400',
 }
 
-export default function InfletaInsightPanel({ insights, riskAssessment }: Props) {
+export default function SmartInsightPanel({ insights, riskAssessment }: Props) {
   if (insights.length === 0) return null
 
   return (

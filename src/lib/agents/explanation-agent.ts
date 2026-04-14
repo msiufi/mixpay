@@ -1,4 +1,4 @@
-// Explanation Agent — generates Infleta-style insights and a friendly explanation.
+// Explanation Agent — generates smart insights and a friendly explanation.
 
 import { callClaude } from '../claude-client'
 import { getWorstCaseFee } from '../optimizer'
@@ -6,15 +6,15 @@ import type {
   AgentEvent,
   EnrichedSource,
   ExplanationResult,
-  InfletaInsight,
+  SmartInsight,
   LiveRates,
   OptimizationAgentResult,
   RiskAssessment,
 } from './types'
 
-const SYSTEM_PROMPT = `You are MixPay's financial advisor. Generate a friendly explanation of a payment optimization and Infleta-style investment insights.
+const SYSTEM_PROMPT = `You are MixPay's financial advisor. Generate a friendly explanation of a payment optimization and smart investment insights.
 
-The "Infleta concept": sometimes paying with a credit card (higher fee) is smarter than using cash, because the cash can stay invested and earn yield that EXCEEDS the card fee.
+Key insight: sometimes paying with a credit card (higher fee) is smarter than using cash, because the cash can stay invested and earn yield that EXCEEDS the card fee.
 
 Return ONLY valid JSON (no markdown fences):
 {
@@ -94,7 +94,7 @@ function buildFallbackResult(
   liveRates: LiveRates,
 ): ExplanationResult {
   const savings = getWorstCaseFee(amount) - optResult.totalFees
-  const insightLines: InfletaInsight[] = [
+  const insightLines: SmartInsight[] = [
     {
       kind: 'savings',
       headline: `Saved $${savings.toFixed(2)} vs Visa`,

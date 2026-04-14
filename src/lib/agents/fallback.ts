@@ -8,7 +8,7 @@ import type {
   AgentPipelineResult,
   EnrichedSource,
   ExplanationResult,
-  InfletaInsight,
+  SmartInsight,
   LiveRates,
   RiskAssessment,
 } from './types'
@@ -58,9 +58,9 @@ export function buildFallbackPipelineResult(
     recommendation: 'Transaction looks normal.',
   }
 
-  // Build Infleta-style insights from the deterministic result
+  // Build Smart insights from the deterministic result
   const savings = getWorstCaseFee(amount) - optResult.totalFees
-  const insightLines: InfletaInsight[] = []
+  const insightLines: SmartInsight[] = []
 
   if (savings > 0.001) {
     insightLines.push({

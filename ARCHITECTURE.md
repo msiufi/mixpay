@@ -4,7 +4,7 @@
 
 MixPay es una app de optimización de pagos potenciada por inteligencia artificial. En lugar de pagar con una sola fuente (tarjeta, efectivo, crypto), MixPay analiza todas tus fuentes de pago y elige la **combinación óptima** considerando comisiones Y costo de oportunidad.
 
-**Concepto clave (inspirado en Infleta):** A veces es más barato pagar con tarjeta de crédito (2.5% de comisión) y mantener tus pesos invertidos en un FCI al 29% TNA, que gastar esos pesos directamente.
+**Concepto clave (True Cost):** A veces es más barato pagar con tarjeta de crédito (2.5% de comisión) y mantener tus pesos invertidos en un FCI al 29% TNA, que gastar esos pesos directamente.
 
 ---
 
@@ -53,8 +53,8 @@ MixPay usa un pipeline de 4 agentes de Claude coordinados por un orquestador en 
 | Herramienta | API externa | Dato que obtiene |
 |-------------|------------|------------------|
 | `get_ars_exchange_rate` | dolarapi.com (dólar blue) | Cotización ARS/USD (compra y venta) |
-| `get_investment_yields` | rendimientos.co/api/config | Rendimientos de FCI, cuentas remuneradas (TNA) |
-| `get_inflation_data` | rendimientos.co/api/cer-ultimo | Índice CER de inflación del BCRA |
+| `get_investment_yields` | API de mercado financiero | Rendimientos de FCI, cuentas remuneradas (TNA) |
+| `get_inflation_data` | API del BCRA (CER) | Índice CER de inflación del BCRA |
 
 **Flujo:** Claude Haiku recibe las 3 herramientas → decide llamarlas todas → recibe los resultados → devuelve un JSON con las tasas enriquecidas.
 
@@ -122,7 +122,7 @@ Fórmula de Costo Verdadero (horizonte 1 mes):
 
 ---
 
-### 4. Explanation Agent — Insights estilo Infleta
+### 4. Explanation Agent — Insights inteligentes
 
 **Archivo:** `src/lib/agents/explanation-agent.ts`
 **Modelo:** `claude-sonnet-4-6`
@@ -186,14 +186,14 @@ Usuario hace un pago → tasas disponibles INSTANTÁNEAMENTE
 
 ## Proxy de APIs (CORS)
 
-Las APIs externas (dolarapi.com, rendimientos.co) no permiten llamadas directas desde el browser (CORS). Se resuelve con:
+Las APIs externas (dolarapi.com, APIs financieras) no permiten llamadas directas desde el browser (CORS). Se resuelve con:
 
 ### Desarrollo local (Vite proxy)
 **Archivo:** `vite.config.mjs`
 
 ```
 /api/rates?type=blue    → proxy a dolarapi.com/v1/dolares/blue
-/api/yields?source=config → proxy a rendimientos.co/api/config
+/api/yields?source=config → proxy a API de mercado financiero
 ```
 
 ### Producción (Vercel serverless functions)
@@ -203,9 +203,9 @@ Las APIs externas (dolarapi.com, rendimientos.co) no permiten llamadas directas 
 |------|------------|----------------|
 | `/api/rates?type=blue` | dolarapi.com/v1/dolares/blue | 1 min |
 | `/api/rates?type=mep` | dolarapi.com/v1/dolares/bolsa | 1 min |
-| `/api/yields?source=config` | rendimientos.co/api/config | 2 min |
-| `/api/yields?source=cer-ultimo` | rendimientos.co/api/cer-ultimo | 2 min |
-| `/api/yields?source=lecaps` | rendimientos.co/api/lecaps | 2 min |
+| `/api/yields?source=config` | API de mercado financiero | 2 min |
+| `/api/yields?source=cer-ultimo` | API del BCRA (CER) | 2 min |
+| `/api/yields?source=lecaps` | APIs financieras/api/lecaps | 2 min |
 
 ---
 
@@ -218,10 +218,10 @@ Server MCP (Model Context Protocol) independiente para usar con Claude Desktop o
 | Herramienta | Fuente | Datos |
 |-------------|--------|-------|
 | `get_dollar_rates` | dolarapi.com | Todas las cotizaciones (blue, oficial, MEP, CCL, tarjeta, cripto) |
-| `get_fci_yields` | rendimientos.co | Rendimientos de FCI con TNA |
-| `get_inflation_rate` | BCRA vía rendimientos.co | Índice CER |
-| `get_market_data` | rendimientos.co | Indicadores globales (S&P, Bitcoin, Oro) |
-| `get_lecap_rates` | rendimientos.co | LECAPs/BONCAPs con TIR/TNA |
+| `get_fci_yields` | APIs financieras | Rendimientos de FCI con TNA |
+| `get_inflation_rate` | BCRA vía APIs financieras | Índice CER |
+| `get_market_data` | APIs financieras | Indicadores globales (S&P, Bitcoin, Oro) |
+| `get_lecap_rates` | APIs financieras | LECAPs/BONCAPs con TIR/TNA |
 
 **Instalación:**
 ```bash
@@ -266,7 +266,7 @@ npm start
 | Build | Vite 8 |
 | Deploy | Vercel |
 | IA | Claude API (Opus 4.6, Sonnet 4.6, Haiku 4.5) |
-| APIs financieras | dolarapi.com, rendimientos.co, BCRA |
+| APIs financieras | dolarapi.com, APIs financieras, BCRA |
 
 ---
 

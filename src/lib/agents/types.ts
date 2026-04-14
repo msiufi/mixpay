@@ -76,7 +76,7 @@ export interface RiskAssessment {
 
 // ── Explanation Agent ────────────────────────────────────────────────
 
-export interface InfletaInsight {
+export interface SmartInsight {
   kind: 'savings' | 'opportunity_cost' | 'idle_balance' | 'invest_suggestion'
   headline: string
   detail: string
@@ -86,7 +86,7 @@ export interface InfletaInsight {
 export interface ExplanationResult {
   shortExplanation: string
   savingsVsVisa: number
-  insightLines: InfletaInsight[]
+  insightLines: SmartInsight[]
 }
 
 // ── Full pipeline result ─────────────────────────────────────────────
