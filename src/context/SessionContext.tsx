@@ -1,6 +1,7 @@
-import { createContext, useContext, useState } from 'react'
+import { createContext, useContext, useEffect, useState } from 'react'
 import type { OptimizationResult, PaymentSource, Transaction } from '../types'
 import { defaultSources, mockTransactions } from '../lib/mock-data'
+import { prefetchRates } from '../lib/rates-cache'
 
 interface SessionContextValue {
   sources: PaymentSource[]
@@ -14,6 +15,9 @@ const SessionContext = createContext<SessionContextValue | null>(null)
 export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [sources, setSources] = useState<PaymentSource[]>(defaultSources)
   const [transactions, setTransactions] = useState<Transaction[]>(mockTransactions)
+
+  // Prefetch live rates on app mount so they're ready by checkout time
+  useEffect(() => { prefetchRates() }, [])
 
   function applyPayment(result: OptimizationResult, merchant: string, amount: number) {
     setSources(prev =>
