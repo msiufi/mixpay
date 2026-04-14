@@ -51,7 +51,7 @@ function AddFundsModal({ onClose }: { onClose: () => void }) {
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-[#F8FAFC]">Agregar fondos</h2>
+          <h2 className="text-lg font-semibold text-[#F8FAFC]">Add funds</h2>
           <button onClick={onClose} className="text-[#64748B] hover:text-[#94A3B8] text-xl leading-none">✕</button>
         </div>
 
@@ -94,7 +94,7 @@ function AddFundsModal({ onClose }: { onClose: () => void }) {
           disabled={numericValue <= 0}
           className="w-full bg-[#F59E0B] text-[#0F172A] py-3 rounded-xl font-semibold disabled:opacity-40 hover:bg-[#FBBF24] active:scale-95 transition-all"
         >
-          Confirmar
+          Confirm
         </button>
       </div>
     </div>
@@ -152,12 +152,12 @@ export default function Dashboard() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => {
-                if (window.confirm('¿Resetear todos los datos? Se borrarán las tarjetas y transacciones.')) {
+                if (window.confirm('Reset all data? Cards and transactions will be deleted.')) {
                   resetAll()
                 }
               }}
               className="w-8 h-8 bg-[#272F42] rounded-full flex items-center justify-center text-[#64748B] hover:text-[#F87171] hover:bg-[#F87171]/10 transition-all"
-              title="Resetear datos"
+              title="Reset data"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -178,7 +178,7 @@ export default function Dashboard() {
             <button
               onClick={() => setShowAddFunds(true)}
               className="w-7 h-7 bg-[#F59E0B] rounded-full flex items-center justify-center text-[#0F172A] font-bold text-lg leading-none hover:bg-[#FBBF24] active:scale-95 transition-all"
-              title="Agregar fondos"
+              title="Add funds"
             >
               +
             </button>
@@ -267,7 +267,7 @@ export default function Dashboard() {
                   }
                 }}
                 onDelete={(id) => {
-                  if (window.confirm('¿Eliminar esta tarjeta?')) {
+                  if (window.confirm('Delete this card?')) {
                     removeCard(id)
                   }
                 }}
@@ -278,7 +278,7 @@ export default function Dashboard() {
             onClick={() => { setEditingCard(null); setShowAddCard(true) }}
             className="w-full mt-3 border-2 border-dashed border-[#334155] rounded-2xl py-4 text-[#64748B] text-sm font-medium hover:border-[#F59E0B] hover:text-[#F59E0B] transition-all"
           >
-            + Agregar tarjeta
+            + Add card
           </button>
         </div>
 

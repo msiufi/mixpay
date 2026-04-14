@@ -79,14 +79,14 @@ export default function AddCardModal({ onClose, onSave, editCard }: AddCardModal
       >
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-[#F8FAFC]">
-            {editCard ? 'Editar tarjeta' : 'Nueva tarjeta'}
+            {editCard ? 'Edit card' : 'New card'}
           </h2>
           <button onClick={onClose} className="text-[#64748B] hover:text-[#94A3B8] text-xl leading-none">✕</button>
         </div>
 
-        {/* Banco */}
+        {/* Bank */}
         <div>
-          <label className="text-[#94A3B8] text-xs block mb-1">Banco</label>
+          <label className="text-[#94A3B8] text-xs block mb-1">Bank</label>
           {!showCustomBank ? (
             <select
               value={bank}
@@ -100,23 +100,23 @@ export default function AddCardModal({ onClose, onSave, editCard }: AddCardModal
               }}
               className="w-full bg-[#1E293B] border border-[#334155] rounded-xl px-4 py-3 text-[#F8FAFC] text-sm focus:outline-none focus:border-[#F59E0B] appearance-none"
             >
-              <option value="">Seleccionar banco...</option>
+              <option value="">Select bank...</option>
               {BANKS.map(b => <option key={b} value={b}>{b}</option>)}
-              <option value="__custom__">Otro...</option>
+              <option value="__custom__">Other...</option>
             </select>
           ) : (
             <input
               value={customBank}
               onChange={e => setCustomBank(e.target.value)}
-              placeholder="Nombre del banco"
+              placeholder="Bank name"
               className="w-full bg-[#1E293B] border border-[#334155] rounded-xl px-4 py-3 text-[#F8FAFC] text-sm placeholder-[#475569] focus:outline-none focus:border-[#F59E0B]"
             />
           )}
         </div>
 
-        {/* Red */}
+        {/* Network */}
         <div>
-          <label className="text-[#94A3B8] text-xs block mb-1">Red</label>
+          <label className="text-[#94A3B8] text-xs block mb-1">Network</label>
           <div className="flex gap-2">
             {NETWORKS.map(net => (
               <button
@@ -134,9 +134,9 @@ export default function AddCardModal({ onClose, onSave, editCard }: AddCardModal
           </div>
         </div>
 
-        {/* Nombre */}
+        {/* Name */}
         <div>
-          <label className="text-[#94A3B8] text-xs block mb-1">Nombre <span className="text-[#64748B]">(opcional)</span></label>
+          <label className="text-[#94A3B8] text-xs block mb-1">Name <span className="text-[#64748B]">(optional)</span></label>
           <input
             value={customName}
             onChange={e => setCustomName(e.target.value)}
@@ -145,10 +145,10 @@ export default function AddCardModal({ onClose, onSave, editCard }: AddCardModal
           />
         </div>
 
-        {/* Límite + Moneda */}
+        {/* Limit + Currency */}
         <div className="flex gap-3">
           <div className="flex-[2]">
-            <label className="text-[#94A3B8] text-xs block mb-1">Límite</label>
+            <label className="text-[#94A3B8] text-xs block mb-1">Limit</label>
             <input
               type="number"
               min="0"
@@ -160,7 +160,7 @@ export default function AddCardModal({ onClose, onSave, editCard }: AddCardModal
             />
           </div>
           <div className="flex-1">
-            <label className="text-[#94A3B8] text-xs block mb-1">Moneda</label>
+            <label className="text-[#94A3B8] text-xs block mb-1">Currency</label>
             <select
               value={currency}
               onChange={e => setCurrency(e.target.value)}
@@ -172,10 +172,10 @@ export default function AddCardModal({ onClose, onSave, editCard }: AddCardModal
           </div>
         </div>
 
-        {/* Cierre + Vencimiento */}
+        {/* Closing + Due */}
         <div className="flex gap-3">
           <div className="flex-1">
-            <label className="text-[#94A3B8] text-xs block mb-1">Cierre (día)</label>
+            <label className="text-[#94A3B8] text-xs block mb-1">Closing day</label>
             <input
               type="number"
               min="1"
@@ -187,7 +187,7 @@ export default function AddCardModal({ onClose, onSave, editCard }: AddCardModal
             />
           </div>
           <div className="flex-1">
-            <label className="text-[#94A3B8] text-xs block mb-1">Vencimiento (día)</label>
+            <label className="text-[#94A3B8] text-xs block mb-1">Due day</label>
             <input
               type="number"
               min="1"
@@ -222,7 +222,7 @@ export default function AddCardModal({ onClose, onSave, editCard }: AddCardModal
           disabled={!isValid}
           className="w-full bg-[#F59E0B] text-[#0F172A] py-3 rounded-xl font-semibold disabled:opacity-40 hover:bg-[#FBBF24] active:scale-95 transition-all"
         >
-          {editCard ? 'Guardar cambios' : 'Agregar tarjeta'}
+          {editCard ? 'Save changes' : 'Add card'}
         </button>
       </div>
     </div>
