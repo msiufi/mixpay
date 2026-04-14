@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useState } from 'react'
 import type { OptimizationResult, PaymentSource, Transaction } from '../types'
 import { defaultBalances, defaultCards, mockTransactions } from '../lib/mock-data'
 import { loadCards, saveCards, clearCards, generateCardId, generateLast4, buildCardLabel, getDefaultFee } from '../lib/card-storage'
