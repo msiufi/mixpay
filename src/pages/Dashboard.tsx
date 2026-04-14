@@ -25,7 +25,6 @@ function AddFundsModal({ onClose }: { onClose: () => void }) {
   const [focused, setFocused] = useState(false)
 
   const numericValue = parseFloat(rawAmount) || 0
-  const isArs = selected === 'ars'
   const displayValue = focused
     ? rawAmount
     : numericValue > 0
