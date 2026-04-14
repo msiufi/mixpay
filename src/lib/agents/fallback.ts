@@ -1,8 +1,11 @@
 // Deterministic fallback when VITE_CLAUDE_API_KEY is absent.
-// Reuses the existing greedy optimizer so the app works without an API key.
+// Uses the same true-cost math tools as the AI pipeline for correct allocation.
 
 import type { PaymentSource } from '../../types'
-import { optimizePayment, getWorstCaseFee } from '../optimizer'
+import { getWorstCaseFee } from '../optimizer'
+import { ARG_MONTHLY_INFLATION, US_ANNUAL_INFLATION } from '../config'
+import { getCachedRates, enrichSources } from '../rates-cache'
+import { createMathToolHandlers } from './math-tools'
 import type {
   AgentEvent,
   AgentPipelineResult,
@@ -11,26 +14,67 @@ import type {
   SmartInsight,
   LiveRates,
   RiskAssessment,
+  OptimizationAgentResult,
 } from './types'
 
 function emit(onEvent: (e: AgentEvent) => void, partial: Omit<AgentEvent, 'timestamp'>) {
   onEvent({ ...partial, timestamp: Date.now() } as AgentEvent)
 }
 
-export function buildFallbackPipelineResult(
+export async function buildFallbackPipelineResult(
   merchant: string,
   amount: number,
   sources: PaymentSource[],
   onEvent?: (e: AgentEvent) => void,
-): AgentPipelineResult {
+): Promise<AgentPipelineResult> {
   const fire = onEvent ?? (() => {})
 
-  // Simulate agent progression so the UI animation still works
+  // Use cached live rates if available, otherwise defaults
+  const cachedRates = getCachedRates()
+  const liveRates: LiveRates = cachedRates ?? {
+    arsExchangeRate: 1400,
+    fciTopFunds: [{ name: 'FCI Money Market (est.)', tna: 40 }],
+    monthlyInflation: ARG_MONTHLY_INFLATION,
+    usAnnualInflation: US_ANNUAL_INFLATION,
+    marketData: {},
+  }
+
+  // Build enriched sources
+  const enrichedSources: EnrichedSource[] = cachedRates
+    ? enrichSources(sources, cachedRates)
+    : sources.map(s => ({
+        ...s,
+        effectiveYieldRate: s.yieldRate ?? 0,
+        liveExchangeRate: s.currency === 'ARS' ? 1400 : undefined,
+      }))
+
+  // Simulate agent progression
   emit(fire, { kind: 'agent_start', agentName: 'RatesAgent' })
   emit(fire, { kind: 'agent_done', agentName: 'RatesAgent' })
 
   emit(fire, { kind: 'agent_start', agentName: 'OptimizationAgent' })
-  const optResult = optimizePayment(amount, sources)
+
+  // Use the SAME math tools as the AI pipeline — true cost ranking
+  const handlers = createMathToolHandlers(
+    amount,
+    enrichedSources,
+    liveRates.arsExchangeRate,
+    liveRates.monthlyInflation,
+    liveRates.usAnnualInflation,
+  )
+
+  const costsResult = await handlers.calculate_true_costs({}) as {
+    optimalOrder: string[]
+  }
+
+  const allocation = await handlers.allocate_payment({ source_order: costsResult.optimalOrder }) as {
+    allocations: OptimizationAgentResult['allocations']
+    totalUSD: number
+    totalFees: number
+    totalOpportunityCost: number
+    success: boolean
+  }
+
   emit(fire, { kind: 'agent_done', agentName: 'OptimizationAgent' })
 
   emit(fire, { kind: 'agent_start', agentName: 'RiskAgent' })
@@ -38,71 +82,42 @@ export function buildFallbackPipelineResult(
 
   emit(fire, { kind: 'agent_start', agentName: 'ExplanationAgent' })
 
-  // Build enriched sources (just add yield + effective yield)
-  const enrichedSources: EnrichedSource[] = sources.map(s => ({
-    ...s,
-    effectiveYieldRate: s.yieldRate ?? 0,
-    liveExchangeRate: s.currency === 'ARS' ? 1400 : undefined,
-  }))
-
-  const liveRates: LiveRates = {
-    arsExchangeRate: 1400,
-    fciTopFunds: [{ name: 'FCI Money Market (fallback)', tna: 40 }],
-    monthlyInflation: 0.029,
-    usAnnualInflation: 0.03,
-    marketData: {},
-  }
-
   const riskAssessment: RiskAssessment = {
     level: 'low',
     flags: [],
     recommendation: 'Transaction looks normal.',
   }
 
-  // Build Smart insights from the deterministic result
-  const savings = getWorstCaseFee(amount) - optResult.totalFees
+  // Build insights
+  const savings = getWorstCaseFee(amount) - allocation.totalFees
   const insightLines: SmartInsight[] = []
 
   if (savings > 0.001) {
     insightLines.push({
       kind: 'savings',
-      headline: `You saved $${savings.toFixed(2)} vs Visa`,
-      detail: `MixPay used low-fee sources first, avoiding the 3.5% credit card surcharge.`,
+      headline: `Saved $${savings.toFixed(2)} vs Visa`,
+      detail: 'MixPay used true-cost ranking to minimize fees and opportunity cost.',
       deltaUSD: savings,
     })
   }
 
-  // Opportunity cost insight for balance sources that were used
-  const balanceUsages = optResult.sourceUsages.filter(u => {
-    const src = sources.find(s => s.id === u.sourceId)
-    return src && (src.yieldRate ?? 0) > 0
-  })
-  if (balanceUsages.length > 0) {
-    const topUsage = balanceUsages[0]
-    const src = sources.find(s => s.id === topUsage.sourceId)!
-    const monthlyYield = (src.yieldRate ?? 0) / 12
-    const opportunityCost = topUsage.amountUSD * monthlyYield
-    if (opportunityCost > 0.001) {
-      insightLines.push({
-        kind: 'opportunity_cost',
-        headline: `${src.label} earns ${((src.yieldRate ?? 0) * 100).toFixed(1)}% APY`,
-        detail: `Using $${topUsage.amountUSD.toFixed(2)} from ${src.label} costs ~$${opportunityCost.toFixed(3)}/mo in foregone yield.`,
-        deltaUSD: -opportunityCost,
-      })
-    }
+  if (allocation.totalOpportunityCost !== 0) {
+    insightLines.push({
+      kind: 'opportunity_cost',
+      headline: 'Opportunity cost factored in',
+      detail: `Real yield (adjusted for inflation) was considered in the optimization.`,
+      deltaUSD: -allocation.totalOpportunityCost,
+    })
   }
 
-  // Idle balance suggestion
-  const unusedBalances = sources.filter(s => {
-    const used = optResult.sourceUsages.find(u => u.sourceId === s.id)
-    return s.kind === 'balance' && (!used || s.available - (used.amountOriginal ?? 0) > 2)
-  })
-  if (unusedBalances.length > 0) {
-    const idle = unusedBalances[0]
+  const bestFund = liveRates.fciTopFunds[0]
+  if (bestFund) {
+    const annualInflation = liveRates.monthlyInflation * 12
+    const realYield = (bestFund.tna / 100) - annualInflation
     insightLines.push({
       kind: 'invest_suggestion',
-      headline: `Invest idle ${idle.currency}`,
-      detail: `Your ${idle.label} balance could earn ~${((idle.yieldRate ?? 0) * 100).toFixed(1)}% APY in a money market fund.`,
+      headline: `Invest in ${bestFund.name}`,
+      detail: `${bestFund.name} at ${bestFund.tna}% TNA gives ${(realYield * 100).toFixed(1)}% real yield above inflation.`,
       deltaUSD: 0,
     })
   }
@@ -115,8 +130,24 @@ export function buildFallbackPipelineResult(
 
   emit(fire, { kind: 'agent_done', agentName: 'ExplanationAgent' })
 
+  const optimizationResult = {
+    sourceUsages: allocation.allocations.map(a => ({
+      sourceId: a.sourceId,
+      label: a.label,
+      symbol: a.symbol,
+      currency: a.currency,
+      amountOriginal: a.amountOriginal,
+      amountUSD: a.amountUSD,
+      fee: a.fee,
+      feeRate: a.feeRate,
+    })),
+    totalUSD: allocation.totalUSD,
+    totalFees: allocation.totalFees,
+    success: allocation.success,
+  }
+
   const pipelineResult: AgentPipelineResult = {
-    optimizationResult: optResult,
+    optimizationResult,
     enrichedSources,
     liveRates,
     riskAssessment,

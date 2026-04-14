@@ -1,7 +1,8 @@
-import { createContext, useContext, useState } from 'react'
+import { createContext, useContext, useEffect, useState } from 'react'
 import type { OptimizationResult, PaymentSource, Transaction } from '../types'
 import { defaultBalances, defaultCards, mockTransactions } from '../lib/mock-data'
 import { loadCards, saveCards, clearCards, generateCardId, generateLast4, buildCardLabel, getDefaultFee } from '../lib/card-storage'
+import { prefetchRates } from '../lib/rates-cache'
 
 interface SessionContextValue {
   sources: PaymentSource[]
@@ -28,12 +29,22 @@ const SessionContext = createContext<SessionContextValue | null>(null)
 function getInitialSources(): PaymentSource[] {
   const storedCards = loadCards()
   const cards = storedCards ?? defaultCards
-  return [...defaultBalances, ...cards]
+  // Deduplicate by ID (localStorage may have stale copies of default cards)
+  const all = [...defaultBalances, ...cards]
+  const seen = new Set<string>()
+  return all.filter(s => {
+    if (seen.has(s.id)) return false
+    seen.add(s.id)
+    return true
+  })
 }
 
 export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [sources, setSources] = useState<PaymentSource[]>(getInitialSources)
   const [transactions, setTransactions] = useState<Transaction[]>(mockTransactions)
+
+  // Prefetch live rates on app mount so they're ready by checkout time
+  useEffect(() => { prefetchRates() }, [])
 
   function persistCards(nextSources: PaymentSource[]) {
     const cards = nextSources.filter(s => s.kind === 'credit_card')
