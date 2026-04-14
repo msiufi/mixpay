@@ -108,4 +108,23 @@ describe('optimizePayment', () => {
       expect(getWorstCaseFee(100)).toBeCloseTo(3.50)
     })
   })
+
+  describe('billing cycle integration', () => {
+    const cardSources: PaymentSource[] = [
+      { id: 'usd', label: 'USD', symbol: '$', kind: 'balance', currency: 'USD', available: 5, feeRate: 0, priority: 1 },
+      { id: 'card-closing', label: 'Visa Closing', symbol: '$', kind: 'credit_card', currency: 'USD', available: 500, feeRate: 0.035, priority: 4, bank: 'Test', network: 'visa', closingDay: 15, dueDay: 5, creditLimit: 500 },
+      { id: 'card-newperiod', label: 'MC NewPeriod', symbol: '$', kind: 'credit_card', currency: 'USD', available: 300, feeRate: 0.025, priority: 5, bank: 'Test', network: 'mastercard', closingDay: 10, dueDay: 28, creditLimit: 300 },
+    ]
+
+    it('prefers the card in new-period over closing-soon card', () => {
+      // April 13: card-closing closes in 2 days (penalized → priority 6)
+      //           card-newperiod closed on 10 (favored → priority 4)
+      const today = new Date(2026, 3, 13)
+      const result = optimizePayment(10, cardSources, today)
+      const usages = result.sourceUsages.map(u => u.sourceId)
+      expect(usages).toContain('usd')
+      expect(usages).toContain('card-newperiod')
+      expect(usages).not.toContain('card-closing')
+    })
+  })
 })

@@ -1,4 +1,5 @@
 import type { OptimizationResult, PaymentSource, SourceUsage } from '../types'
+import { getAdjustedSources } from './billing-cycle'
 
 export const ARS_RATE = 1400
 
@@ -9,11 +10,13 @@ function roundAmount(value: number) {
 export function optimizePayment(
   amountUSD: number,
   sources: PaymentSource[],
+  today: Date = new Date(),
 ): OptimizationResult {
   let remaining = roundAmount(amountUSD)
   const sourceUsages: SourceUsage[] = []
 
-  const sorted = [...sources].sort((a, b) => a.priority - b.priority)
+  const adjusted = getAdjustedSources(sources, today)
+  const sorted = [...adjusted].sort((a, b) => a.priority - b.priority)
 
   for (const source of sorted) {
     if (remaining < 0.001) break
