@@ -1,0 +1,98 @@
+<h2>¿Cómo se agrega una tarjeta nueva?</h2>
+<p class="subtitle">Elegí el estilo de formulario para cargar los datos de la tarjeta</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Modal bottom-sheet (como "Agregar fondos")</h3>
+      <p>Un panel que sube desde abajo con todos los campos. Consistente con el modal existente de Add Funds.</p>
+      <div style="background:#131C2E;border:1px solid #334155;border-radius:14px 14px 0 0;padding:20px;margin-top:12px;max-width:340px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+          <span style="color:#F8FAFC;font-weight:600;font-size:15px;">Nueva tarjeta</span>
+          <span style="color:#64748B;cursor:pointer;">✕</span>
+        </div>
+        <!-- Banco -->
+        <div style="margin-bottom:12px;">
+          <label style="color:#94A3B8;font-size:11px;display:block;margin-bottom:4px;">Banco</label>
+          <div style="background:#1E293B;border:1px solid #334155;border-radius:10px;padding:10px 12px;color:#F8FAFC;font-size:13px;">Galicia ▾</div>
+        </div>
+        <!-- Red -->
+        <div style="display:flex;gap:8px;margin-bottom:12px;">
+          <div style="flex:1;background:#F59E0B;border-radius:8px;padding:8px;text-align:center;color:#0F172A;font-weight:600;font-size:12px;">Visa</div>
+          <div style="flex:1;background:#1E293B;border:1px solid #334155;border-radius:8px;padding:8px;text-align:center;color:#94A3B8;font-size:12px;">Mastercard</div>
+          <div style="flex:1;background:#1E293B;border:1px solid #334155;border-radius:8px;padding:8px;text-align:center;color:#94A3B8;font-size:12px;">Amex</div>
+        </div>
+        <!-- Nombre -->
+        <div style="margin-bottom:12px;">
+          <label style="color:#94A3B8;font-size:11px;display:block;margin-bottom:4px;">Nombre (opcional)</label>
+          <div style="background:#1E293B;border:1px solid #334155;border-radius:10px;padding:10px 12px;color:#475569;font-size:13px;">Ej: Gold, Black, Platinum...</div>
+        </div>
+        <!-- Limite y moneda -->
+        <div style="display:flex;gap:8px;margin-bottom:12px;">
+          <div style="flex:2;">
+            <label style="color:#94A3B8;font-size:11px;display:block;margin-bottom:4px;">Límite</label>
+            <div style="background:#1E293B;border:1px solid #334155;border-radius:10px;padding:10px 12px;color:#475569;font-size:13px;">500.000</div>
+          </div>
+          <div style="flex:1;">
+            <label style="color:#94A3B8;font-size:11px;display:block;margin-bottom:4px;">Moneda</label>
+            <div style="background:#1E293B;border:1px solid #334155;border-radius:10px;padding:10px 12px;color:#F8FAFC;font-size:13px;">ARS ▾</div>
+          </div>
+        </div>
+        <!-- Fechas -->
+        <div style="display:flex;gap:8px;margin-bottom:16px;">
+          <div style="flex:1;">
+            <label style="color:#94A3B8;font-size:11px;display:block;margin-bottom:4px;">Cierre (día)</label>
+            <div style="background:#1E293B;border:1px solid #334155;border-radius:10px;padding:10px 12px;color:#F8FAFC;font-size:13px;text-align:center;">15</div>
+          </div>
+          <div style="flex:1;">
+            <label style="color:#94A3B8;font-size:11px;display:block;margin-bottom:4px;">Vencimiento (día)</label>
+            <div style="background:#1E293B;border:1px solid #334155;border-radius:10px;padding:10px 12px;color:#F8FAFC;font-size:13px;text-align:center;">5</div>
+          </div>
+        </div>
+        <!-- Fee -->
+        <div style="margin-bottom:16px;">
+          <label style="color:#94A3B8;font-size:11px;display:block;margin-bottom:4px;">Fee % <span style="color:#64748B;">(opcional, default según red)</span></label>
+          <div style="background:#1E293B;border:1px solid #334155;border-radius:10px;padding:10px 12px;color:#475569;font-size:13px;">3.5</div>
+        </div>
+        <div style="background:#F59E0B;border-radius:10px;padding:12px;text-align:center;color:#0F172A;font-weight:600;font-size:14px;">Agregar tarjeta</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Página separada con wizard de 2 pasos</h3>
+      <p>Paso 1: Banco + Red + Nombre. Paso 2: Límite + Fechas + Fee. Más espacio, menos scroll.</p>
+      <div style="display:flex;gap:8px;margin-top:12px;">
+        <div style="background:#131C2E;border:1px solid #334155;border-radius:12px;padding:16px;width:160px;">
+          <div style="display:flex;gap:6px;margin-bottom:12px;">
+            <div style="width:20px;height:20px;background:#F59E0B;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#0F172A;font-size:10px;font-weight:bold;">1</div>
+            <div style="width:20px;height:20px;background:#334155;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#64748B;font-size:10px;">2</div>
+          </div>
+          <span style="color:#F8FAFC;font-size:12px;font-weight:600;">Datos de la tarjeta</span>
+          <div style="margin-top:10px;font-size:11px;color:#94A3B8;">
+            <div style="margin-bottom:6px;">Banco: <span style="color:#F8FAFC">Galicia ▾</span></div>
+            <div style="margin-bottom:6px;">Red: <span style="color:#F59E0B">Visa</span></div>
+            <div>Nombre: <span style="color:#475569">Gold</span></div>
+          </div>
+        </div>
+        <div style="background:#131C2E;border:1px solid #334155;border-radius:12px;padding:16px;width:160px;opacity:0.5;">
+          <div style="display:flex;gap:6px;margin-bottom:12px;">
+            <div style="width:20px;height:20px;background:#334155;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#64748B;font-size:10px;">1</div>
+            <div style="width:20px;height:20px;background:#F59E0B;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#0F172A;font-size:10px;font-weight:bold;">2</div>
+          </div>
+          <span style="color:#F8FAFC;font-size:12px;font-weight:600;">Límites y fechas</span>
+          <div style="margin-top:10px;font-size:11px;color:#94A3B8;">
+            <div style="margin-bottom:6px;">Límite + moneda</div>
+            <div style="margin-bottom:6px;">Día de cierre</div>
+            <div>Día de vencimiento</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p style="color:#64748B;font-size:13px;margin-top:20px;">Ambas opciones incluyen los mismos campos: banco, red, nombre, límite, moneda, cierre, vencimiento, fee opcional</p>

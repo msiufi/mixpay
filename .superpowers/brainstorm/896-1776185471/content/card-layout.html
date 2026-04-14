@@ -1,0 +1,102 @@
+<h2>¿Cómo se ven las tarjetas en el Dashboard?</h2>
+<p class="subtitle">Elegí el layout que te guste más para la sección de Credit Cards</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Lista compacta (como ahora, pero con más datos)</h3>
+      <p>Cada tarjeta es una fila con banco, red, límite, cierre y vencimiento en una línea</p>
+      <div style="background:#1E293B;border-radius:12px;padding:16px;margin-top:12px;font-family:monospace;font-size:12px;color:#94A3B8;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+          <span style="background:#1E3A5F;color:#60A5FA;padding:2px 8px;border-radius:4px;font-weight:bold;font-size:11px;">VISA</span>
+          <span style="color:#F8FAFC;font-weight:600;">Galicia Gold</span>
+          <span style="margin-left:auto;color:#F59E0B;font-weight:bold;">$500.000</span>
+        </div>
+        <div style="display:flex;gap:12px;font-size:11px;color:#64748B;">
+          <span>Cierra: 15 · Vence: 5</span>
+          <span>Fee: 3.5%</span>
+          <span style="color:#FBBF24;">⚠ Cierra en 3 días</span>
+        </div>
+      </div>
+      <div style="background:#1E293B;border-radius:12px;padding:16px;margin-top:6px;font-family:monospace;font-size:12px;color:#94A3B8;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+          <span style="background:#3B1F1F;color:#F87171;padding:2px 8px;border-radius:4px;font-weight:bold;font-size:11px;">MC</span>
+          <span style="color:#F8FAFC;font-weight:600;">Macro Black</span>
+          <span style="margin-left:auto;color:#F59E0B;font-weight:bold;">$300.000</span>
+        </div>
+        <div style="display:flex;gap:12px;font-size:11px;color:#64748B;">
+          <span>Cierra: 22 · Vence: 12</span>
+          <span>Fee: 2.5%</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Cards estilo tarjeta de crédito</h3>
+      <p>Cada tarjeta se ve como una tarjeta física con los datos del ciclo debajo</p>
+      <div style="display:flex;gap:12px;margin-top:12px;flex-wrap:wrap;">
+        <div style="background:linear-gradient(135deg,#1E3A5F,#0F172A);border:1px solid #334155;border-radius:14px;padding:16px;width:200px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+            <span style="color:#94A3B8;font-size:11px;">GALICIA</span>
+            <span style="color:#60A5FA;font-weight:bold;font-size:12px;">VISA</span>
+          </div>
+          <div style="color:#F8FAFC;font-size:13px;letter-spacing:2px;margin-bottom:14px;">•••• 4521</div>
+          <div style="color:#F59E0B;font-weight:bold;font-size:16px;margin-bottom:4px;">$500.000</div>
+          <div style="display:flex;gap:8px;font-size:10px;color:#64748B;">
+            <span>Cierra 15</span>
+            <span>·</span>
+            <span>Vence 5</span>
+          </div>
+          <div style="margin-top:8px;font-size:10px;color:#FBBF24;">⚠ Cierra en 3 días</div>
+        </div>
+        <div style="background:linear-gradient(135deg,#3B1F1F,#0F172A);border:1px solid #334155;border-radius:14px;padding:16px;width:200px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+            <span style="color:#94A3B8;font-size:11px;">MACRO</span>
+            <span style="color:#F87171;font-weight:bold;font-size:12px;">MC</span>
+          </div>
+          <div style="color:#F8FAFC;font-size:13px;letter-spacing:2px;margin-bottom:14px;">•••• 8832</div>
+          <div style="color:#F59E0B;font-weight:bold;font-size:16px;margin-bottom:4px;">$300.000</div>
+          <div style="display:flex;gap:8px;font-size:10px;color:#64748B;">
+            <span>Cierra 22</span>
+            <span>·</span>
+            <span>Vence 12</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Híbrido: lista con barra de ciclo visual</h3>
+      <p>Como A, pero con una barra de progreso que muestra dónde estás en el ciclo cierre→vencimiento</p>
+      <div style="background:#1E293B;border-radius:12px;padding:16px;margin-top:12px;font-family:monospace;font-size:12px;color:#94A3B8;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+          <span style="background:#1E3A5F;color:#60A5FA;padding:2px 8px;border-radius:4px;font-weight:bold;font-size:11px;">VISA</span>
+          <span style="color:#F8FAFC;font-weight:600;">Galicia Gold</span>
+          <span style="margin-left:auto;color:#F59E0B;font-weight:bold;">$500.000</span>
+        </div>
+        <div style="display:flex;gap:12px;font-size:11px;color:#64748B;margin-bottom:8px;">
+          <span>Cierra: 15 · Vence: 5</span>
+          <span>Fee: 3.5%</span>
+        </div>
+        <!-- Cycle bar -->
+        <div style="position:relative;height:6px;background:#0F172A;border-radius:3px;overflow:hidden;">
+          <div style="position:absolute;left:0;top:0;height:100%;width:75%;background:linear-gradient(90deg,#22C55E,#FBBF24);border-radius:3px;"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:9px;color:#64748B;margin-top:4px;">
+          <span>Cierre (15 abr)</span>
+          <span style="color:#FBBF24;">↑ Hoy</span>
+          <span>Vence (5 may)</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p style="color:#64748B;font-size:13px;margin-top:20px;">+ Botón "Agregar tarjeta" aparecería debajo de todas las tarjetas</p>
