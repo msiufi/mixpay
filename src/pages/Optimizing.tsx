@@ -74,8 +74,10 @@ export default function Optimizing() {
   const step = PHASE_STEP[streamState.phase]
   const result = streamState.result?.optimizationResult ?? null
 
+  const canConfirm = result?.success === true
+
   function handleConfirm() {
-    if (!result) return
+    if (!result || !canConfirm) return
     applyPayment(result, merchant, amount)
     navigate('/success', {
       state: {
@@ -365,6 +367,18 @@ export default function Optimizing() {
             </div>
           )}
 
+          {/* Insufficient funds warning */}
+          {result && !canConfirm && step >= 5 && (
+            <div className="px-6 pb-2">
+              <div className="bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 text-center">
+                <p className="text-sm font-medium text-red-400">Insufficient funds</p>
+                <p className="text-xs text-[#64748B] mt-1">
+                  You need ${fmt(amount - (result?.totalUSD ?? 0))} more to complete this payment.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Confirm Button */}
           <div
             className={`px-6 pb-6 transition-all duration-500 ${
@@ -375,9 +389,10 @@ export default function Optimizing() {
           >
             <button
               onClick={handleConfirm}
-              className="w-full bg-[#F59E0B] text-[#0F172A] py-4 rounded-xl font-bold text-base hover:bg-[#FBBF24] active:scale-95 transition-all"
+              disabled={!canConfirm}
+              className="w-full bg-[#F59E0B] text-[#0F172A] py-4 rounded-xl font-bold text-base hover:bg-[#FBBF24] active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
             >
-              Confirm Payment →
+              {canConfirm ? 'Confirm Payment →' : 'Insufficient Funds'}
             </button>
           </div>
         </div>
