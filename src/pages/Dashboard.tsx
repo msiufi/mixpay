@@ -11,6 +11,7 @@ import CardDisplay from '../components/CardDisplay'
 import AddCardModal from '../components/AddCardModal'
 import type { PaymentSource, Transaction } from '../types'
 import type { LiveRates } from '../lib/agents/types'
+import { fmt } from '../lib/format'
 
 type FundCurrency = 'usd' | 'usdc' | 'ars'
 

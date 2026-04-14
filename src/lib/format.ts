@@ -3,6 +3,7 @@
 const LOCALE = 'es-AR'
 
 /** Format a money amount: $1.234,56 for ARS, $5,00 for USD */
+export const fmt = formatMoney
 export function formatMoney(value: number, decimals = 2): string {
   return value.toLocaleString(LOCALE, {
     minimumFractionDigits: decimals,
