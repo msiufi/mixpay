@@ -21,3 +21,6 @@ export const WORST_CASE_FEE_RATE = 0.035
 
 /** Monthly Argentine inflation estimate (used in insight calculations). */
 export const ARG_MONTHLY_INFLATION = 0.029
+
+/** Annual US inflation estimate (for USD/USDC real yield calculations). */
+export const US_ANNUAL_INFLATION = 0.03

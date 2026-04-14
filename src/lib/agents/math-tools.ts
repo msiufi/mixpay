@@ -2,6 +2,7 @@
 // Opus calls these via tool_use for precise calculations — no LLM math.
 
 import type { ClaudeTool } from '../claude-client'
+import { ARG_MONTHLY_INFLATION, US_ANNUAL_INFLATION } from '../config'
 import type { EnrichedSource } from './types'
 
 // ── Tool definitions (sent to Claude API) ────────────────────────────
@@ -61,10 +62,16 @@ interface SourceCost {
   currency: string
   feeRate: number
   effectiveYieldRate: number
+  realYieldRate: number
   feePerDollar: number
   opportunityCostPerDollar: number
   trueCostPerDollar: number
   availableUSD: number
+}
+
+/** Get the annual inflation rate for a given currency. */
+function inflationForCurrency(currency: string): number {
+  return currency === 'ARS' ? ARG_MONTHLY_INFLATION * 12 : US_ANNUAL_INFLATION
 }
 
 function computeSourceCosts(sources: EnrichedSource[], arsRate: number): SourceCost[] {
@@ -74,10 +81,15 @@ function computeSourceCosts(sources: EnrichedSource[], arsRate: number): SourceC
       : s.available
 
     const feePerDollar = s.feeRate
-    // Opportunity cost: yield lost per month by spending $1
+
+    // Opportunity cost uses REAL yield (nominal - currency-specific inflation).
+    // ARS at 29% with 35% inflation → real yield = -6% → negative opportunity cost (benefit to spend!)
+    // USD at 4.2% with 3% inflation → real yield = +1.2% → small cost to spend
+    // Credit cards → 0 (borrowed money, no opportunity cost)
+    const realYield = s.effectiveYieldRate - inflationForCurrency(s.currency)
     const opportunityCostPerDollar = s.kind === 'credit_card'
-      ? 0  // borrowed money — no opportunity cost
-      : s.effectiveYieldRate / 12
+      ? 0
+      : realYield / 12  // can be negative = benefit to spend
     const trueCostPerDollar = feePerDollar + opportunityCostPerDollar
 
     return {
@@ -86,6 +98,7 @@ function computeSourceCosts(sources: EnrichedSource[], arsRate: number): SourceC
       currency: s.currency,
       feeRate: s.feeRate,
       effectiveYieldRate: s.effectiveYieldRate,
+      realYieldRate: round(realYield),
       feePerDollar: round(feePerDollar),
       opportunityCostPerDollar: round(opportunityCostPerDollar),
       trueCostPerDollar: round(trueCostPerDollar),
@@ -148,9 +161,10 @@ function computeAllocation(
     }
 
     const fee = round(usedUSD * s.feeRate)
+    const realYield = s.effectiveYieldRate - inflationForCurrency(s.currency)
     const oppCost = s.kind === 'credit_card'
       ? 0
-      : round(usedUSD * s.effectiveYieldRate / 12)
+      : round(usedUSD * realYield / 12)
 
     allocations.push({
       sourceId: s.id,
